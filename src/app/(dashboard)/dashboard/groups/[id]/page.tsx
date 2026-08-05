@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
+import { BalancesList } from "@/components/groups/group-balances";
 import { format } from "date-fns";
 
 export default async function GroupDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +27,7 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
           user: true,
         },
       },
+      settlements: true,
       expenses: {
         include: {
           creator: true,
@@ -166,7 +168,13 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
           )}
         </TabsContent>
         <TabsContent value="balances" className="pt-6">
-           <div className="text-muted-foreground text-sm">Balances logic coming next.</div>
+           <BalancesList 
+              groupId={group.id} 
+              members={group.members} 
+              expenses={group.expenses} 
+              settlements={group.settlements} 
+              currentUserId={session.user.id} 
+           />
         </TabsContent>
         <TabsContent value="members" className="pt-6 space-y-4">
            {group.members.map(member => (
