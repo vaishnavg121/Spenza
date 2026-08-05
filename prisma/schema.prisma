@@ -10,16 +10,21 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-
+  id               String    @id
+  name             String
+  username         String?   @unique
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
+  image            String?
+  phone            String?
+  currency         String    @default("USD")
+  theme            String    @default("system")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  sessions         Session[]
+  accounts         Account[]
+  
   user1Friendships    Friendship[]   @relation("FriendshipUser1")
   user2Friendships    Friendship[]   @relation("FriendshipUser2")
   groupMembers        GroupMember[]  @relation("GroupMembership")
@@ -27,15 +32,16 @@ model User {
   expenseSplits       ExpenseSplit[] @relation("UserSplits")
   settlementsPaid     Settlement[]   @relation("SettlementPayer")
   settlementsReceived Settlement[]   @relation("SettlementPayee")
+  notifications       Notification[] @relation("UserNotifications")
+  activities          Activity[]     @relation("UserActivities")
 
-  @@unique([email])
   @@map("user")
 }
 
 model Session {
   id        String   @id
   expiresAt DateTime
-  token     String
+  token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ipAddress String?
@@ -43,7 +49,6 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@index([userId])
   @@map("session")
 }
@@ -107,12 +112,16 @@ model Group {
   name        String
   description String?
   imageUrl    String?
+  currency    String   @default("USD")
+  inviteLink  String?  @unique
+  isArchived  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   members     GroupMember[]
   expenses    Expense[]
   settlements Settlement[]
+  activities  Activity[]
 }
 
 model GroupMember {
@@ -120,7 +129,8 @@ model GroupMember {
   groupId   String
   userId    String
   role      GroupRole @default(MEMBER)
-  createdAt DateTime @default(now())
+  isFavorite Boolean  @default(false)
+  createdAt DateTime  @default(now())
 
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user      User     @relation("GroupMembership", fields: [userId], references: [id], onDelete: Cascade)
@@ -135,21 +145,40 @@ enum GroupRole {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  description String
-  amount      Float
-  date        DateTime @default(now())
-  creatorId   String
-  groupId     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  amount        Float
+  currency      String   @default("USD")
+  date          DateTime @default(now())
+  receiptUrl    String?
+  notes         String?
+  categoryId    String?
+  splitType     SplitType @default(EQUAL)
+  isRecurring   Boolean  @default(false)
+  creatorId     String
+  groupId       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  creator     User     @relation("ExpenseCreator", fields: [creatorId], references: [id])
-  group       Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  splits      ExpenseSplit[]
+  creator       User     @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  group         Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category      Category? @relation(fields: [categoryId], references: [id])
+  splits        ExpenseSplit[]
+  activities    Activity[]
+  recurring     RecurringExpense?
 
   @@index([creatorId])
   @@index([groupId])
+  @@index([categoryId])
+}
+
+enum SplitType {
+  EQUAL
+  EXACT
+  PERCENTAGE
+  SHARES
+  CUSTOM
 }
 
 model ExpenseSplit {
@@ -158,6 +187,8 @@ model ExpenseSplit {
   userId     String
   amountPaid Float    @default(0)
   amountOwed Float    @default(0)
+  percentage Float?
+  shares     Float?
   
   expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   user       User     @relation("UserSplits", fields: [userId], references: [id], onDelete: Cascade)
@@ -171,14 +202,113 @@ model Settlement {
   payerId     String
   payeeId     String
   amount      Float
+  currency    String   @default("USD")
+  method      PaymentMethod @default(CASH)
   date        DateTime @default(now())
   groupId     String?
+  status      SettlementStatus @default(COMPLETED)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   payer       User     @relation("SettlementPayer", fields: [payerId], references: [id])
   payee       User     @relation("SettlementPayee", fields: [payeeId], references: [id])
   group       Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  activities  Activity[]
 
   @@index([payerId])
   @@index([payeeId])
   @@index([groupId])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  icon        String?
+  color       String?
+  
+  expenses    Expense[]
+}
+
+model RecurringExpense {
+  id            String   @id @default(cuid())
+  expenseId     String   @unique
+  frequency     RecurringFrequency
+  nextDate      DateTime
+  endDate       DateTime?
+  isActive      Boolean  @default(true)
+  
+  expense       Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  body        String
+  type        NotificationType
+  isRead      Boolean  @default(false)
+  link        String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum NotificationType {
+  EXPENSE_ADDED
+  SETTLEMENT_COMPLETED
+  GROUP_INVITE
+  REMINDER
+  MENTION
+  SYSTEM
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  groupId     String?
+  expenseId   String?
+  settlementId String?
+  action      ActivityAction
+  details     Json?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
+  group       Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense     Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  settlement  Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([groupId])
+}
+
+enum ActivityAction {
+  GROUP_CREATED
+  USER_JOINED
+  EXPENSE_ADDED
+  EXPENSE_UPDATED
+  EXPENSE_DELETED
+  SETTLEMENT_MADE
 }
