@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
+import { format } from "date-fns";
 
 export default async function GroupDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,6 +47,12 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
     notFound();
   }
 
+  const formattedMembers = group.members.map(m => ({
+     id: m.userId,
+     name: m.user.name,
+     image: m.user.image,
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -63,6 +71,11 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
             <p className="text-muted-foreground">{group.description || "No description provided"}</p>
           </div>
         </div>
+        <AddExpenseDialog 
+           groupId={group.id} 
+           members={formattedMembers} 
+           currentUserId={session.user.id} 
+        />
       </div>
 
       <Tabs defaultValue="expenses" className="w-full">
@@ -87,12 +100,70 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
           </TabsTrigger>
         </TabsList>
         <TabsContent value="expenses" className="pt-6">
-          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 p-8 text-center">
-            <h3 className="text-lg font-semibold">No expenses yet</h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-              Add your first expense to start tracking splits.
-            </p>
-          </div>
+          {group.expenses.length === 0 ? (
+            <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 p-8 text-center">
+              <h3 className="text-lg font-semibold">No expenses yet</h3>
+              <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                Add your first expense to start tracking splits.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+               {group.expenses.map((expense) => {
+                  const youPaid = expense.splits.find(s => s.userId === session.user.id)?.amountPaid || 0;
+                  const youOwe = expense.splits.find(s => s.userId === session.user.id)?.amountOwed || 0;
+                  
+                  let status = "Not involved";
+                  let statusColor = "text-muted-foreground";
+                  let statusAmount = "";
+
+                  if (youPaid > 0 && youOwe > 0) {
+                      const net = youPaid - youOwe;
+                      if (net > 0) {
+                         status = "You lent";
+                         statusColor = "text-emerald-500";
+                         statusAmount = `$${net.toFixed(2)}`;
+                      } else if (net < 0) {
+                         status = "You owe";
+                         statusColor = "text-destructive";
+                         statusAmount = `$${Math.abs(net).toFixed(2)}`;
+                      } else {
+                         status = "Settled up";
+                         statusColor = "text-muted-foreground";
+                      }
+                  } else if (youPaid > 0) {
+                      status = "You lent";
+                      statusColor = "text-emerald-500";
+                      statusAmount = `$${(youPaid - youOwe).toFixed(2)}`;
+                  } else if (youOwe > 0) {
+                      status = "You owe";
+                      statusColor = "text-destructive";
+                      statusAmount = `$${youOwe.toFixed(2)}`;
+                  }
+
+                  return (
+                    <div key={expense.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors">
+                       <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-muted text-center leading-tight">
+                             <span className="text-xs text-muted-foreground font-medium uppercase">{format(expense.date, 'MMM')}</span>
+                             <span className="text-lg font-bold">{format(expense.date, 'dd')}</span>
+                          </div>
+                          <div>
+                             <p className="font-medium">{expense.title}</p>
+                             <p className="text-sm text-muted-foreground">
+                                {expense.creator.name} paid <span className="font-medium text-foreground">${expense.amount.toFixed(2)}</span>
+                             </p>
+                          </div>
+                       </div>
+                       <div className="text-right">
+                          <p className={`text-xs font-medium ${statusColor}`}>{status}</p>
+                          {statusAmount && <p className={`font-bold ${statusColor}`}>{statusAmount}</p>}
+                       </div>
+                    </div>
+                  );
+               })}
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="balances" className="pt-6">
            <div className="text-muted-foreground text-sm">Balances logic coming next.</div>
