@@ -7,24 +7,23 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id               String    @id
-  name             String
-  username         String?   @unique
-  email            String    @unique
-  emailVerified    Boolean   @default(false)
-  image            String?
-  phone            String?
-  currency         String    @default("USD")
-  theme            String    @default("system")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  
-  sessions         Session[]
-  accounts         Account[]
-  
+  id                  String         @id
+  name                String
+  username            String?        @unique
+  email               String         @unique
+  emailVerified       Boolean        @default(false)
+  image               String?
+  phone               String?
+  currency            String         @default("USD")
+  theme               String         @default("system")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  sessions            Session[]
+  accounts            Account[]
   user1Friendships    Friendship[]   @relation("FriendshipUser1")
   user2Friendships    Friendship[]   @relation("FriendshipUser2")
   groupMembers        GroupMember[]  @relation("GroupMembership")
@@ -86,15 +85,15 @@ model Verification {
 }
 
 model Friendship {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   user1Id   String
   user2Id   String
   status    FriendshipStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
-  user1     User     @relation("FriendshipUser1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2     User     @relation("FriendshipUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  user1 User @relation("FriendshipUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("FriendshipUser2", fields: [user2Id], references: [id], onDelete: Cascade)
 
   @@unique([user1Id, user2Id])
   @@index([user1Id])
@@ -125,15 +124,15 @@ model Group {
 }
 
 model GroupMember {
-  id        String   @id @default(cuid())
-  groupId   String
-  userId    String
-  role      GroupRole @default(MEMBER)
-  isFavorite Boolean  @default(false)
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  groupId    String
+  userId     String
+  role       GroupRole @default(MEMBER)
+  isFavorite Boolean   @default(false)
+  createdAt  DateTime  @default(now())
 
-  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user      User     @relation("GroupMembership", fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation("GroupMembership", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
   @@index([userId])
@@ -145,28 +144,28 @@ enum GroupRole {
 }
 
 model Expense {
-  id            String   @id @default(cuid())
-  title         String
-  description   String?
-  amount        Float
-  currency      String   @default("USD")
-  date          DateTime @default(now())
-  receiptUrl    String?
-  notes         String?
-  categoryId    String?
-  splitType     SplitType @default(EQUAL)
-  isRecurring   Boolean  @default(false)
-  creatorId     String
-  groupId       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  amount      Float
+  currency    String    @default("USD")
+  date        DateTime  @default(now())
+  receiptUrl  String?
+  notes       String?
+  categoryId  String?
+  splitType   SplitType @default(EQUAL)
+  isRecurring Boolean   @default(false)
+  creatorId   String
+  groupId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  creator       User     @relation("ExpenseCreator", fields: [creatorId], references: [id])
-  group         Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  category      Category? @relation(fields: [categoryId], references: [id])
-  splits        ExpenseSplit[]
-  activities    Activity[]
-  recurring     RecurringExpense?
+  creator    User              @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  group      Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category   Category?         @relation(fields: [categoryId], references: [id])
+  splits     ExpenseSplit[]
+  activities Activity[]
+  recurring  RecurringExpense?
 
   @@index([creatorId])
   @@index([groupId])
@@ -182,38 +181,36 @@ enum SplitType {
 }
 
 model ExpenseSplit {
-  id         String   @id @default(cuid())
+  id         String  @id @default(cuid())
   expenseId  String
   userId     String
-  amountPaid Float    @default(0)
-  amountOwed Float    @default(0)
+  amountPaid Float   @default(0)
+  amountOwed Float   @default(0)
   percentage Float?
   shares     Float?
-  
-  expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  user       User     @relation("UserSplits", fields: [userId], references: [id], onDelete: Cascade)
+  expense    Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user       User    @relation("UserSplits", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([expenseId, userId])
   @@index([userId])
 }
 
 model Settlement {
-  id          String   @id @default(cuid())
-  payerId     String
-  payeeId     String
-  amount      Float
-  currency    String   @default("USD")
-  method      PaymentMethod @default(CASH)
-  date        DateTime @default(now())
-  groupId     String?
-  status      SettlementStatus @default(COMPLETED)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  payer       User     @relation("SettlementPayer", fields: [payerId], references: [id])
-  payee       User     @relation("SettlementPayee", fields: [payeeId], references: [id])
-  group       Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  activities  Activity[]
+  id         String           @id @default(cuid())
+  payerId    String
+  payeeId    String
+  amount     Float
+  currency   String           @default("USD")
+  method     PaymentMethod    @default(CASH)
+  date       DateTime         @default(now())
+  groupId    String?
+  status     SettlementStatus @default(COMPLETED)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  payer      User             @relation("SettlementPayer", fields: [payerId], references: [id])
+  payee      User             @relation("SettlementPayee", fields: [payeeId], references: [id])
+  group      Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  activities Activity[]
 
   @@index([payerId])
   @@index([payeeId])
@@ -234,23 +231,21 @@ enum SettlementStatus {
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  icon        String?
-  color       String?
-  
-  expenses    Expense[]
+  id       String    @id @default(cuid())
+  name     String    @unique
+  icon     String?
+  color    String?
+  expenses Expense[]
 }
 
 model RecurringExpense {
-  id            String   @id @default(cuid())
-  expenseId     String   @unique
-  frequency     RecurringFrequency
-  nextDate      DateTime
-  endDate       DateTime?
-  isActive      Boolean  @default(true)
-  
-  expense       Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  id        String             @id @default(cuid())
+  expenseId String             @unique
+  frequency RecurringFrequency
+  nextDate  DateTime
+  endDate   DateTime?
+  isActive  Boolean            @default(true)
+  expense   Expense            @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 }
 
 enum RecurringFrequency {
@@ -262,16 +257,16 @@ enum RecurringFrequency {
 }
 
 model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  body        String
-  type        NotificationType
-  isRead      Boolean  @default(false)
-  link        String?
-  createdAt   DateTime @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
 
-  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -286,19 +281,19 @@ enum NotificationType {
 }
 
 model Activity {
-  id          String   @id @default(cuid())
-  userId      String
-  groupId     String?
-  expenseId   String?
+  id           String         @id @default(cuid())
+  userId       String
+  groupId      String?
+  expenseId    String?
   settlementId String?
-  action      ActivityAction
-  details     Json?
-  createdAt   DateTime @default(now())
+  action       ActivityAction
+  details      Json?
+  createdAt    DateTime       @default(now())
 
-  user        User     @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
-  group       Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  expense     Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  settlement  Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+  user       User        @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
+  group      Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense    Expense?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  settlement Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([groupId])
