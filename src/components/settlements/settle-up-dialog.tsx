@@ -18,7 +18,6 @@ import { HandCoins } from "lucide-react";
 
 interface SettleUpDialogProps {
   groupId: string;
-  debtorId: string;
   creditorId: string;
   debtorName: string;
   creditorName: string;
@@ -29,7 +28,6 @@ interface SettleUpDialogProps {
 
 export function SettleUpDialog({
   groupId,
-  debtorId,
   creditorId,
   debtorName,
   creditorName,
@@ -90,11 +88,9 @@ export function SettleUpDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="ml-auto">
-          <HandCoins className="mr-2 h-4 w-4" />
-          Settle
-        </Button>
+      <DialogTrigger render={<Button variant="outline" size="sm" className="ml-auto" />}>
+        <HandCoins className="mr-2 h-4 w-4" />
+        Settle
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

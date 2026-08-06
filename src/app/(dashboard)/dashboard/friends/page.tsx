@@ -104,7 +104,7 @@ export default function FriendsPage() {
               <UserPlus className="mx-auto h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-semibold">No pending requests</h3>
               <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                You're all caught up!
+                You&apos;re all caught up!
               </p>
             </div>
           ) : (

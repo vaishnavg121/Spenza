@@ -43,17 +43,15 @@ export function AddFriendDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add Friend
-        </Button>
+      <DialogTrigger render={<Button />}>
+        <UserPlus className="mr-2 h-4 w-4" />
+        Add Friend
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add a Friend</DialogTitle>
           <DialogDescription>
-            Enter your friend's email address to send them a request.
+          Enter your friend&apos;s email address to send them a request.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">

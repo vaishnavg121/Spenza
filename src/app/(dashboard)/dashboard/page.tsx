@@ -9,6 +9,28 @@ import { formatDistanceToNow } from "date-fns";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Users, Receipt, HandCoins, UserPlus } from "lucide-react";
 
+type ActivityDetails = {
+  title?: string;
+  amount?: number;
+  type?: string;
+  name?: string;
+};
+
+function getActivityDetails(value: unknown): ActivityDetails {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  const details = value as Record<string, unknown>;
+
+  return {
+    title: typeof details.title === "string" ? details.title : undefined,
+    amount: typeof details.amount === "number" ? details.amount : undefined,
+    type: typeof details.type === "string" ? details.type : undefined,
+    name: typeof details.name === "string" ? details.name : undefined,
+  };
+}
+
 export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-data"],
@@ -39,8 +61,8 @@ export default function DashboardPage() {
     }
   };
 
-  const getActivityText = (activity: any) => {
-    const details = activity.details as any;
+  const getActivityText = (activity: { action: string; details: unknown }) => {
+    const details = getActivityDetails(activity.details);
     switch (activity.action) {
       case "EXPENSE_ADDED":
         return `added an expense "${details?.title}" for $${details?.amount?.toFixed(2)}`;
@@ -52,6 +74,12 @@ export default function DashboardPage() {
       default:
         return `performed an action`;
     }
+  };
+
+  const balances = data?.balances ?? {
+    totalBalance: 0,
+    youAreOwed: 0,
+    youOwe: 0,
   };
 
   return (
@@ -69,9 +97,9 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">Total balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${data?.balances.totalBalance! > 0 ? "text-emerald-500" : data?.balances.totalBalance! < 0 ? "text-destructive" : ""}`}>
-              {data?.balances.totalBalance! > 0 ? "+" : ""}
-              ${data?.balances.totalBalance!.toFixed(2)}
+            <div className={`text-2xl font-bold ${balances.totalBalance > 0 ? "text-emerald-500" : balances.totalBalance < 0 ? "text-destructive" : ""}`}>
+              {balances.totalBalance > 0 ? "+" : ""}
+              ${balances.totalBalance.toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -81,7 +109,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-500">
-              ${data?.balances.youAreOwed.toFixed(2)}
+              ${balances.youAreOwed.toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -91,7 +119,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              ${data?.balances.youOwe.toFixed(2)}
+              ${balances.youOwe.toFixed(2)}
             </div>
           </CardContent>
         </Card>

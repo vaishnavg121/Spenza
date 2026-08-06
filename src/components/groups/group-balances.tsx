@@ -154,7 +154,6 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
             
             <SettleUpDialog 
                groupId={groupId}
-               debtorId={debtor.id}
                creditorId={creditor.id}
                debtorName={isCurrentUserDebtor ? "You" : debtor.name}
                creditorName={isCurrentUserCreditor ? "You" : creditor.name}

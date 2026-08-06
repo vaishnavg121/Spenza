@@ -12,7 +12,7 @@
 
 Spenza is currently a small Next.js 16 web prototype, not a mobile application and not a production backend. It contains useful product concepts, a reasonably broad first-pass Prisma model, and prototype flows for email/password authentication, friends, groups, expenses, balances, settlements, dashboard totals, and activity. The implementation is tightly coupled to Next.js Server Actions, Better Auth cookies, DOM-oriented shadcn/Base UI components, and direct server-side Prisma calls.
 
-The repository cannot currently meet its own quality gates: Prisma schema validation passes, but ESLint, strict TypeScript checking, and the production build do not. There are no tests, no migration history, no standalone API, no deployment configuration, and no verified database baseline. The safest reuse is therefore at the product/domain-concept level. The existing UI and server actions should remain available temporarily as behavioral reference while production mobile and API implementations are built alongside them.
+The repository baseline now passes ESLint, strict TypeScript checking, Prisma schema validation, and the Next.js production build. Better Auth still reports missing runtime base-URL and secret configuration during build-time evaluation, so authentication behavior remains unverified. There are no tests, no migration history, no standalone API, no deployment configuration, and no verified database baseline. The safest reuse is therefore at the product/domain-concept level. The existing UI and server actions should remain available temporarily as behavioral reference while production mobile and API implementations are built alongside them.
 
 No tracked secret file or common credential signature was found in the current tree or Git filename history. A local ignored `.env` exists and defines `DATABASE_URL`; its value was not displayed or tested. This is not proof that the complete Git object database or the configured remote database is free of secrets.
 
@@ -203,9 +203,9 @@ Branding is limited to the name **Spenza**, the tagline “Split expenses with f
 | Repository/file inventory with `rg --files` and PowerShell | Completed |
 | `npm ls --depth=0` | Could not run because the host npm wrapper points to a missing global npm CLI |
 | `prisma validate` via local binary | Passed; schema parses successfully |
-| `eslint .` via local binary | Failed: 7 errors and 4 warnings |
-| `tsc --noEmit` via local binary | Failed: form resolver types, dialog trigger composition, and button variant types |
-| `next build` via local binary | Failed while fetching Geist/Geist Mono from Google Fonts; independent type checking also fails |
+| `eslint .` via local binary | Passed after baseline repair |
+| `tsc --noEmit` via local binary | Passed after baseline repair |
+| `next build` via local binary | Passed after baseline repair; Better Auth reported missing base-URL and secret runtime configuration |
 | Test inventory | No `test` script and no test/spec files |
 | `pnpm outdated --format json` | Could not run because the repository has no pnpm lockfile |
 | Official npm registry version query | Completed for all declared direct dependencies |

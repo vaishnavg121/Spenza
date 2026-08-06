@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createExpense, createExpenseSchema } from "@/actions/expenses";
+import { createExpense } from "@/actions/expenses";
+import { createExpenseSchema } from "@/lib/expense-schema";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Receipt } from "lucide-react";
 
@@ -54,7 +55,11 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const form = useForm<z.infer<typeof createExpenseSchema>>({
+  const form = useForm<
+    z.input<typeof createExpenseSchema>,
+    undefined,
+    z.output<typeof createExpenseSchema>
+  >({
     resolver: zodResolver(createExpenseSchema),
     defaultValues: {
       groupId,
@@ -75,9 +80,10 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
     name: "splits",
   });
 
-  const splitType = form.watch("splitType");
-  const amount = form.watch("amount") || 0;
-  const splits = form.watch("splits");
+  const { setValue } = form;
+  const splitType = useWatch({ control: form.control, name: "splitType" });
+  const amount = useWatch({ control: form.control, name: "amount" }) ?? 0;
+  const splits = useWatch({ control: form.control, name: "splits" }) ?? [];
 
   // Reset split values when changing split type
   useEffect(() => {
@@ -86,7 +92,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
     } else if (splitType === "EXACT") {
        // Reset values to 0
        const newSplits = members.map(m => ({ userId: m.id, value: 0, isSelected: true }));
-       form.setValue("splits", newSplits);
+       setValue("splits", newSplits);
     } else if (splitType === "PERCENTAGE") {
         const equalPerc = Math.floor(100 / members.length);
         const newSplits = members.map((m, i) => ({ 
@@ -94,13 +100,12 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
             value: i === 0 ? 100 - (equalPerc * (members.length - 1)) : equalPerc, 
             isSelected: true 
         }));
-        form.setValue("splits", newSplits);
+        setValue("splits", newSplits);
     } else if (splitType === "SHARES") {
         const newSplits = members.map(m => ({ userId: m.id, value: 1, isSelected: true }));
-        form.setValue("splits", newSplits);
+        setValue("splits", newSplits);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [splitType]);
+  }, [members, setValue, splitType]);
 
   const mutation = useMutation({
     mutationFn: createExpense,
@@ -122,7 +127,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
     },
   });
 
-  function onSubmit(values: z.infer<typeof createExpenseSchema>) {
+  function onSubmit(values: z.output<typeof createExpenseSchema>) {
     // Client-side quick validation before submission
     if (values.splitType === "EXACT") {
        const total = values.splits.reduce((sum, s) => sum + s.value, 0);
@@ -145,11 +150,9 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Receipt className="mr-2 h-4 w-4" />
-          Add Expense
-        </Button>
+      <DialogTrigger render={<Button />}>
+        <Receipt className="mr-2 h-4 w-4" />
+        Add Expense
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>

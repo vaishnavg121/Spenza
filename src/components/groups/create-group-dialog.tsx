@@ -38,7 +38,7 @@ import { PlusCircle } from "lucide-react";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
-  currency: z.string().default("USD"),
+  currency: z.string(),
 });
 
 const CURRENCIES = ["USD", "EUR", "GBP", "INR", "AED", "JPY", "SGD", "AUD", "CAD"];
@@ -75,11 +75,9 @@ export function CreateGroupDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Create Group
-        </Button>
+      <DialogTrigger render={<Button />}>
+        <PlusCircle className="mr-2 h-4 w-4" />
+        Create Group
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

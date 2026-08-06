@@ -2,24 +2,10 @@
 
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { createExpenseSchema } from "@/lib/expense-schema";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import * as z from "zod";
-
-export const createExpenseSchema = z.object({
-  groupId: z.string(),
-  title: z.string().min(1, "Title is required"),
-  amount: z.number().positive("Amount must be greater than 0"),
-  payerId: z.string().min(1, "Payer is required"),
-  splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES", "CUSTOM"]),
-  splits: z.array(
-    z.object({
-      userId: z.string(),
-      value: z.number().nonnegative(),
-      isSelected: z.boolean().default(true), // Used for EQUAL split to toggle participation
-    })
-  ),
-});
+import type * as z from "zod";
 
 export async function createExpense(data: z.infer<typeof createExpenseSchema>) {
   const session = await auth.api.getSession({
