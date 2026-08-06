@@ -7,18 +7,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Check, X, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 export default function FriendsPage() {
   const queryClient = useQueryClient();
 
-  const { data: friends, isLoading: friendsLoading } = useQuery({
+  const { data: friends, isLoading: friendsLoading, isError: friendsError, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => getFriends(),
   });
 
-  const { data: requests, isLoading: requestsLoading } = useQuery({
+  const { data: requests, isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests } = useQuery({
     queryKey: ["friend-requests"],
     queryFn: () => getPendingRequests(),
   });
@@ -41,19 +44,15 @@ export default function FriendsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Friends</h2>
-          <p className="text-muted-foreground">
-            Manage your network to easily add them to groups.
-          </p>
-        </div>
-        <AddFriendDialog />
-      </div>
+    <div className="space-y-6 sm:space-y-8">
+      <PageHeader
+        title="Friends"
+        description="Manage your network to easily add people to groups."
+        action={<AddFriendDialog />}
+      />
 
       <Tabs defaultValue="friends" className="w-full">
-        <TabsList className="w-full max-w-md grid grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 sm:max-w-md">
           <TabsTrigger value="friends">My Friends</TabsTrigger>
           <TabsTrigger value="requests">
             Friend Requests
@@ -65,22 +64,40 @@ export default function FriendsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="friends" className="pt-6">
+        <TabsContent value="friends" className="pt-5 sm:pt-6">
           {friendsLoading ? (
-            <div className="text-muted-foreground">Loading friends...</div>
-          ) : friends?.length === 0 ? (
-            <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 p-8 text-center">
-              <Users className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">No friends yet</h3>
-              <p className="mb-4 mt-2 text-sm text-muted-foreground max-w-sm">
-                Add friends by their email to start splitting bills.
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading friends" aria-busy="true">
+              {[1, 2, 3].map((item) => (
+                <Card key={item} className="shadow-sm">
+                  <CardContent className="flex items-center gap-3 p-5">
+                    <Skeleton className="size-12 rounded-full" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+          ) : friendsError ? (
+            <EmptyState
+              icon={Users}
+              title="Friends unavailable"
+              description="We couldn&apos;t load your friends right now."
+              action={<Button type="button" onClick={() => refetchFriends()}>Try again</Button>}
+            />
+          ) : friends?.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No friends yet"
+              description="Add friends by their email to start splitting bills."
+              action={<AddFriendDialog />}
+            />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {friends?.map((friend) => (
-                <Card key={friend.id}>
-                  <CardContent className="flex items-center p-6 gap-4">
+                <Card key={friend.id} className="shadow-sm">
+                  <CardContent className="flex items-center gap-3 p-5 sm:gap-4 sm:p-6">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={friend.image || ""} />
                       <AvatarFallback>{friend.name.substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -96,22 +113,29 @@ export default function FriendsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="requests" className="pt-6">
+        <TabsContent value="requests" className="pt-5 sm:pt-6">
            {requestsLoading ? (
-            <div className="text-muted-foreground">Loading requests...</div>
-          ) : requests?.length === 0 ? (
-            <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 p-8 text-center">
-              <UserPlus className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">No pending requests</h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                You&apos;re all caught up!
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading friend requests" aria-busy="true">
+              {[1, 2].map((item) => <Skeleton key={item} className="h-44 rounded-2xl" />)}
             </div>
+          ) : requestsError ? (
+            <EmptyState
+              icon={UserPlus}
+              title="Requests unavailable"
+              description="We couldn&apos;t load friend requests right now."
+              action={<Button type="button" onClick={() => refetchRequests()}>Try again</Button>}
+            />
+          ) : requests?.length === 0 ? (
+            <EmptyState
+              icon={UserPlus}
+              title="No pending requests"
+              description="You&apos;re all caught up."
+            />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {requests?.map((req) => (
-                <Card key={req.id}>
-                  <CardContent className="flex flex-col p-6 gap-4">
+                <Card key={req.id} className="shadow-sm">
+                  <CardContent className="flex flex-col gap-4 p-5 sm:p-6">
                      <div className="flex items-center gap-4">
                         <Avatar className="h-12 w-12">
                            <AvatarImage src={req.user1.image || ""} />
@@ -122,7 +146,7 @@ export default function FriendsPage() {
                            <p className="text-sm text-muted-foreground truncate">{req.user1.email}</p>
                         </div>
                      </div>
-                     <div className="flex items-center gap-2 mt-2">
+                     <div className="mt-2 grid grid-cols-2 gap-2">
                         <Button 
                            className="flex-1" 
                            onClick={() => acceptMutation.mutate(req.id)}

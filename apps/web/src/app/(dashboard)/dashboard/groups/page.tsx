@@ -6,31 +6,29 @@ import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import { Users } from "lucide-react";
 import Link from "next/link";
 
 export default function GroupsPage() {
-  const { data: groups, isLoading } = useQuery({
+  const { data: groups, isLoading, isError, refetch } = useQuery({
     queryKey: ["groups"],
     queryFn: () => getGroups(),
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Groups</h2>
-          <p className="text-muted-foreground">
-            Manage your shared expenses and cohorts.
-          </p>
-        </div>
-        <CreateGroupDialog />
-      </div>
+    <div className="space-y-6 sm:space-y-8">
+      <PageHeader
+        title="Groups"
+        description="Manage your shared expenses and the people you share them with."
+        action={<CreateGroupDialog />}
+      />
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading groups" aria-busy="true">
           {[1, 2, 3].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="shadow-sm">
               <CardHeader className="flex flex-row items-center gap-4">
                 <Skeleton className="h-12 w-12 rounded-full" />
                 <div className="space-y-2">
@@ -41,20 +39,25 @@ export default function GroupsPage() {
             </Card>
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          icon={Users}
+          title="Groups unavailable"
+          description="We couldn&apos;t load your groups right now."
+          action={<button type="button" onClick={() => refetch()} className="min-h-11 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">Try again</button>}
+        />
       ) : groups?.length === 0 ? (
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 p-8 text-center animate-in fade-in-50">
-          <Users className="mx-auto h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">No groups found</h3>
-          <p className="mb-4 mt-2 text-sm text-muted-foreground max-w-sm">
-            You are not part of any groups yet. Create a group to start splitting expenses with friends.
-          </p>
-          <CreateGroupDialog />
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No groups found"
+          description="Create a group to start splitting expenses with friends."
+          action={<CreateGroupDialog />}
+        />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {groups?.map((group) => (
-            <Link key={group.id} href={`/dashboard/groups/${group.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <Link key={group.id} href={`/dashboard/groups/${group.id}`} className="group block h-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              <Card className="h-full shadow-sm transition-colors group-hover:border-primary/50">
                 <CardHeader className="flex flex-row items-start gap-4 space-y-0">
                   <Avatar className="h-12 w-12 rounded-lg">
                     {group.imageUrl ? (
@@ -73,7 +76,7 @@ export default function GroupsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex items-center justify-between gap-3 text-sm">
                     <div className="flex -space-x-2">
                       {group.members.slice(0, 3).map((m) => (
                         <Avatar key={m.id} className="h-6 w-6 border-2 border-background">

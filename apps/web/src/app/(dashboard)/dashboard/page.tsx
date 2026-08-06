@@ -5,6 +5,8 @@ import { getDashboardData } from "@/actions/dashboard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import { formatDistanceToNow } from "date-fns";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { Users, Receipt, HandCoins, UserPlus } from "lucide-react";
@@ -32,22 +34,45 @@ function getActivityDetails(value: unknown): ActivityDetails {
 }
 
 export default function DashboardPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["dashboard-data"],
     queryFn: () => getDashboardData(),
   });
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
+      <div className="space-y-6" aria-label="Loading dashboard" aria-busy="true">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-5 w-full max-w-md" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           <Skeleton className="h-[300px] rounded-xl" />
           <Skeleton className="h-[300px] rounded-xl" />
         </div>
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        icon={Receipt}
+        title="Dashboard unavailable"
+        description="We couldn&apos;t load your dashboard right now. Please try again."
+        action={
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="min-h-11 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground outline-none transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Try again
+          </button>
+        }
+      />
     );
   }
 
@@ -83,56 +108,54 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground">
-          Overview of your expenses and balances across all groups.
-        </p>
-      </div>
+    <div className="space-y-6 sm:space-y-8">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your expenses and balances across all groups."
+      />
       
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${balances.totalBalance > 0 ? "text-emerald-500" : balances.totalBalance < 0 ? "text-destructive" : ""}`}>
+            <div className={`text-2xl font-bold tabular-nums sm:text-3xl ${balances.totalBalance > 0 ? "text-emerald-600 dark:text-emerald-400" : balances.totalBalance < 0 ? "text-destructive" : ""}`}>
               {balances.totalBalance > 0 ? "+" : ""}
               ${balances.totalBalance.toFixed(2)}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-emerald-500">You are owed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-500">
+            <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-3xl">
               ${balances.youAreOwed.toFixed(2)}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-sm sm:col-span-2 xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-destructive">You owe</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
+            <div className="text-2xl font-bold tabular-nums text-destructive sm:text-3xl">
               ${balances.youOwe.toFixed(2)}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-5">
+        <Card className="min-w-0 shadow-sm xl:col-span-3">
           <CardHeader>
             <CardTitle>Spending Overview</CardTitle>
             <CardDescription>Your total spending over the last 6 months.</CardDescription>
           </CardHeader>
-          <CardContent className="pl-2">
-            <div className="h-[300px] w-full mt-4">
+          <CardContent className="min-w-0 px-3 sm:px-5">
+            <div className="mt-4 h-64 w-full min-w-0 sm:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.chartData}>
                   <XAxis 
@@ -160,29 +183,29 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3">
+        <Card className="shadow-sm xl:col-span-2">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>Latest actions in your network.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {data?.activities.length === 0 ? (
-                 <div className="text-sm text-muted-foreground text-center py-8">
-                    No recent activity
+            <div className="space-y-5">
+              {data?.activities?.length === 0 ? (
+                 <div className="rounded-xl bg-muted/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                    No recent activity yet.
                  </div>
               ) : (
-                data?.activities.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-4">
+                data?.activities?.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={activity.user.image || ""} alt="Avatar" />
                       <AvatarFallback>{activity.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-5">
                         {activity.user.name} <span className="font-normal text-muted-foreground">{getActivityText(activity)}</span>
                       </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <p className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs leading-5 text-muted-foreground">
                         {getActivityIcon(activity.action)}
                         {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
                         {activity.group?.name && ` in ${activity.group.name}`}

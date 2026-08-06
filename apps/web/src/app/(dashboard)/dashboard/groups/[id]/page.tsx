@@ -6,7 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { BalancesList } from "@/components/groups/group-balances";
+import { EmptyState } from "@/components/ui/empty-state";
 import { format } from "date-fns";
+import { ReceiptText } from "lucide-react";
 
 export default async function GroupDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -56,10 +58,10 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
   }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 rounded-xl border">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <Avatar className="size-14 shrink-0 rounded-2xl border sm:size-16">
             {group.imageUrl ? (
               <AvatarImage src={group.imageUrl} alt={group.name} />
             ) : (
@@ -68,20 +70,22 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
               </AvatarFallback>
             )}
           </Avatar>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
-            <p className="text-muted-foreground">{group.description || "No description provided"}</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{group.name}</h1>
+            <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground sm:text-base">{group.description || "No description provided"}</p>
           </div>
         </div>
-        <AddExpenseDialog 
-           groupId={group.id} 
-           members={formattedMembers} 
-           currentUserId={session.user.id} 
-        />
+        <div className="w-full sm:w-auto">
+          <AddExpenseDialog
+             groupId={group.id}
+             members={formattedMembers}
+             currentUserId={session.user.id}
+          />
+        </div>
       </div>
 
       <Tabs defaultValue="expenses" className="w-full">
-        <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
+        <TabsList className="w-full justify-start overflow-x-auto rounded-none border-b bg-transparent p-0">
           <TabsTrigger
             value="expenses"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
@@ -101,14 +105,20 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
             Members
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="expenses" className="pt-6">
+        <TabsContent value="expenses" className="pt-5 sm:pt-6">
           {group.expenses.length === 0 ? (
-            <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border border-dashed bg-muted/40 p-8 text-center">
-              <h3 className="text-lg font-semibold">No expenses yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                Add your first expense to start tracking splits.
-              </p>
-            </div>
+            <EmptyState
+              icon={ReceiptText}
+              title="No expenses yet"
+              description="Add your first expense to start tracking splits."
+              action={
+                <AddExpenseDialog
+                  groupId={group.id}
+                  members={formattedMembers}
+                  currentUserId={session.user.id}
+                />
+              }
+            />
           ) : (
             <div className="space-y-4">
                {group.expenses.map((expense) => {
@@ -144,22 +154,22 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
                   }
 
                   return (
-                    <div key={expense.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors">
-                       <div className="flex items-center gap-4">
-                          <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-muted text-center leading-tight">
+                    <div key={expense.id} className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                          <div className="flex size-12 shrink-0 flex-col items-center justify-center rounded-xl bg-muted text-center leading-tight">
                              <span className="text-xs text-muted-foreground font-medium uppercase">{format(expense.date, 'MMM')}</span>
                              <span className="text-lg font-bold">{format(expense.date, 'dd')}</span>
                           </div>
-                          <div>
-                             <p className="font-medium">{expense.title}</p>
-                             <p className="text-sm text-muted-foreground">
+                          <div className="min-w-0">
+                             <p className="truncate font-medium">{expense.title}</p>
+                             <p className="truncate text-sm text-muted-foreground">
                                 {expense.creator.name} paid <span className="font-medium text-foreground">${expense.amount.toFixed(2)}</span>
                              </p>
                           </div>
                        </div>
-                       <div className="text-right">
+                       <div className="flex items-center justify-between gap-3 border-t pt-3 text-left sm:block sm:border-0 sm:pt-0 sm:text-right">
                           <p className={`text-xs font-medium ${statusColor}`}>{status}</p>
-                          {statusAmount && <p className={`font-bold ${statusColor}`}>{statusAmount}</p>}
+                          {statusAmount && <p className={`font-bold tabular-nums ${statusColor}`}>{statusAmount}</p>}
                        </div>
                     </div>
                   );
@@ -167,7 +177,7 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
             </div>
           )}
         </TabsContent>
-        <TabsContent value="balances" className="pt-6">
+        <TabsContent value="balances" className="pt-5 sm:pt-6">
            <BalancesList 
               groupId={group.id} 
               members={group.members} 
@@ -176,20 +186,20 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
               currentUserId={session.user.id} 
            />
         </TabsContent>
-        <TabsContent value="members" className="pt-6 space-y-4">
+        <TabsContent value="members" className="space-y-4 pt-5 sm:pt-6">
            {group.members.map(member => (
-              <div key={member.id} className="flex items-center justify-between p-4 rounded-lg border bg-card">
-                 <div className="flex items-center gap-4">
+              <div key={member.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                 <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                     <Avatar>
                        <AvatarImage src={member.user.image || ""} />
                        <AvatarFallback>{member.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <div>
-                       <p className="font-medium leading-none">{member.user.name} {member.userId === session.user.id && "(You)"}</p>
-                       <p className="text-sm text-muted-foreground">{member.user.email}</p>
+                    <div className="min-w-0">
+                       <p className="truncate font-medium leading-none">{member.user.name} {member.userId === session.user.id && "(You)"}</p>
+                       <p className="truncate pt-1 text-sm text-muted-foreground">{member.user.email}</p>
                     </div>
                  </div>
-                 <div className="text-sm font-medium">
+                 <div className="text-sm font-medium text-muted-foreground sm:text-right">
                     {member.role}
                  </div>
               </div>

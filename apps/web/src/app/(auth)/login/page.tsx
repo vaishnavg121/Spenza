@@ -78,14 +78,14 @@ export default function AuthPage() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center">Spenza</CardTitle>
+    <Card className="w-full max-w-md shadow-sm">
+      <CardHeader className="px-5 pt-6 text-center sm:px-7 sm:pt-8">
+        <CardTitle className="text-2xl">Welcome to Spenza</CardTitle>
         <CardDescription className="text-center">
-          Split expenses with friends easily
+          Sign in or create an account to manage your shared expenses.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-5 pb-6 sm:px-7 sm:pb-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="login">Login</TabsTrigger>
@@ -96,14 +96,14 @@ export default function AuthPage() {
             <form onSubmit={handleLoginSubmit(onLogin)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>
-                <Input id="login-email" type="email" {...registerLogin("email")} />
+                <Input id="login-email" type="email" autoComplete="email" {...registerLogin("email")} />
                 {loginErrors.email && (
                   <p className="text-sm text-destructive">{loginErrors.email.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="login-password">Password</Label>
-                <Input id="login-password" type="password" {...registerLogin("password")} />
+                <Input id="login-password" type="password" autoComplete="current-password" {...registerLogin("password")} />
                 {loginErrors.password && (
                   <p className="text-sm text-destructive">{loginErrors.password.message}</p>
                 )}
@@ -121,21 +121,21 @@ export default function AuthPage() {
             <form onSubmit={handleSignupSubmit(onSignup)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="register-name">Name</Label>
-                <Input id="register-name" {...registerSignup("name")} />
+                <Input id="register-name" autoComplete="name" {...registerSignup("name")} />
                 {signupErrors.name && (
                   <p className="text-sm text-destructive">{signupErrors.name.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="register-email">Email</Label>
-                <Input id="register-email" type="email" {...registerSignup("email")} />
+                <Input id="register-email" type="email" autoComplete="email" {...registerSignup("email")} />
                 {signupErrors.email && (
                   <p className="text-sm text-destructive">{signupErrors.email.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="register-password">Password</Label>
-                <Input id="register-password" type="password" {...registerSignup("password")} />
+                <Input id="register-password" type="password" autoComplete="new-password" {...registerSignup("password")} />
                 {signupErrors.password && (
                   <p className="text-sm text-destructive">{signupErrors.password.message}</p>
                 )}

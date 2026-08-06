@@ -150,11 +150,11 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button className="w-full sm:w-auto" />}>
         <Receipt className="mr-2 h-4 w-4" />
         Add Expense
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Add an Expense</DialogTitle>
           <DialogDescription>
@@ -164,12 +164,12 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             
-            <div className="flex gap-4">
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
                <FormField
                   control={form.control}
                   name="title"
                   render={({ field }) => (
-                     <FormItem className="flex-1">
+                     <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
                         <Input placeholder="Dinner, Taxi, etc." {...field} />
@@ -182,7 +182,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                   control={form.control}
                   name="amount"
                   render={({ field }) => (
-                     <FormItem className="w-[120px]">
+                     <FormItem>
                         <FormLabel>Amount</FormLabel>
                         <FormControl>
                         <Input 
@@ -232,31 +232,31 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                   <FormItem>
                      <FormLabel>Split Type</FormLabel>
                      <Tabs value={field.value} onValueChange={field.onChange} className="w-full">
-                        <TabsList className="w-full grid grid-cols-4">
-                           <TabsTrigger value="EQUAL">Equal</TabsTrigger>
-                           <TabsTrigger value="EXACT">Exact</TabsTrigger>
-                           <TabsTrigger value="PERCENTAGE">%</TabsTrigger>
-                           <TabsTrigger value="SHARES">Shares</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-4">
+                           <TabsTrigger className="px-1 text-xs sm:px-2 sm:text-sm" value="EQUAL">Equal</TabsTrigger>
+                           <TabsTrigger className="px-1 text-xs sm:px-2 sm:text-sm" value="EXACT">Exact</TabsTrigger>
+                           <TabsTrigger className="px-1 text-xs sm:px-2 sm:text-sm" value="PERCENTAGE">%</TabsTrigger>
+                           <TabsTrigger className="px-1 text-xs sm:px-2 sm:text-sm" value="SHARES">Shares</TabsTrigger>
                         </TabsList>
                      </Tabs>
                   </FormItem>
                )}
             />
 
-            <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
+            <div className="space-y-4 rounded-xl border bg-muted/20 p-4 sm:p-5">
                <h4 className="text-sm font-medium">Split Details</h4>
                {fields.map((field, index) => {
                   const member = getMemberDetails(field.userId);
                   if (!member) return null;
                   
                   return (
-                     <div key={field.id} className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
+                     <div key={field.id} className="flex min-h-11 items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
                            <Avatar className="h-8 w-8">
                               <AvatarImage src={member.image || ""} />
                               <AvatarFallback>{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                            </Avatar>
-                           <span className="text-sm font-medium truncate w-[100px]">{member.name}</span>
+                           <span className="truncate text-sm font-medium">{member.name}</span>
                         </div>
                         
                         {splitType === "EQUAL" && (
@@ -288,7 +288,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                                           <Input 
                                              type="number" 
                                              step="0.01" 
-                                             className="w-[100px] h-8 text-right" 
+                                             className="h-10 w-24 text-right"
                                              {...inputField}
                                              onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)} 
                                           />
@@ -310,7 +310,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                                           <Input 
                                              type="number" 
                                              step="1" 
-                                             className="w-[80px] h-8 text-right" 
+                                             className="h-10 w-20 text-right"
                                              {...inputField}
                                              onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)} 
                                           />
@@ -333,7 +333,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                                           <Input 
                                              type="number" 
                                              step="1" 
-                                             className="w-[80px] h-8 text-right" 
+                                             className="h-10 w-20 text-right"
                                              {...inputField}
                                              onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)} 
                                           />
@@ -350,7 +350,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
 
                {/* Helpers to show totals for Exact and Percentage */}
                {splitType === "EXACT" && (
-                  <div className="pt-2 flex justify-between text-sm font-medium border-t">
+                  <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm font-medium">
                      <span>Total Selected:</span>
                      <span className={Math.abs(splits.reduce((a,b) => a + b.value, 0) - amount) > 0.01 ? "text-destructive" : "text-emerald-500"}>
                         ${splits.reduce((a,b) => a + b.value, 0).toFixed(2)} / ${amount.toFixed(2)}
@@ -358,7 +358,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                   </div>
                )}
                {splitType === "PERCENTAGE" && (
-                  <div className="pt-2 flex justify-between text-sm font-medium border-t">
+                  <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm font-medium">
                      <span>Total Selected:</span>
                      <span className={Math.abs(splits.reduce((a,b) => a + b.value, 0) - 100) > 0.01 ? "text-destructive" : "text-emerald-500"}>
                         {splits.reduce((a,b) => a + b.value, 0).toFixed(0)}% / 100%
@@ -368,7 +368,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
                 {mutation.isPending ? "Adding..." : "Add Expense"}
               </Button>
             </DialogFooter>

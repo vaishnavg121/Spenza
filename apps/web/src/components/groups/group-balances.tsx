@@ -104,8 +104,8 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
 
   if (simplifiedDebts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center border rounded-xl bg-card">
-        <h3 className="text-lg font-semibold text-emerald-500">All Settled Up!</h3>
+      <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border bg-card p-8 text-center shadow-sm">
+        <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">All Settled Up!</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           No one owes anything in this group.
         </p>
@@ -115,7 +115,10 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold mb-4">Suggested Settlements</h3>
+      <div>
+        <h3 className="text-lg font-semibold">Suggested Settlements</h3>
+        <p className="mt-1 text-sm text-muted-foreground">A clear path to settling the current group balances.</p>
+      </div>
       {simplifiedDebts.map((debt, index) => {
         const debtor = getMember(debt.debtorId);
         const creditor = getMember(debt.creditorId);
@@ -126,8 +129,8 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
         const isCurrentUserCreditor = currentUserId === creditor.id;
 
         return (
-          <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-card">
-            <div className="flex items-center gap-4">
+          <div key={index} className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                <div className="flex -space-x-2">
                   <Avatar className="h-8 w-8 border-2 border-background">
                      <AvatarImage src={debtor.image || ""} />
@@ -138,8 +141,8 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
                      <AvatarFallback>{creditor.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                </div>
-               <div>
-                  <p className="font-medium text-sm">
+               <div className="min-w-0">
+                  <p className="text-sm font-medium leading-5">
                      <span className={isCurrentUserDebtor ? "font-bold" : ""}>
                         {isCurrentUserDebtor ? "You" : debtor.name}
                      </span>
@@ -148,7 +151,7 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
                         {isCurrentUserCreditor ? "You" : creditor.name}
                      </span>
                   </p>
-                  <p className="text-emerald-500 font-bold">${debt.amount.toFixed(2)}</p>
+                  <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">${debt.amount.toFixed(2)}</p>
                </div>
             </div>
             

@@ -92,20 +92,20 @@ export function SettleUpDialog({
         <HandCoins className="mr-2 h-4 w-4" />
         Settle
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Settle Up</DialogTitle>
           <DialogDescription>
             Record a cash payment to clear this debt.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col items-center justify-center space-y-4 py-6">
-          <div className="flex items-center gap-4 text-lg">
+        <div className="flex flex-col items-center justify-center space-y-4 py-6 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-lg">
              <span className="font-semibold">{debtorName}</span>
              <span className="text-muted-foreground">→</span>
              <span className="font-semibold">{creditorName}</span>
           </div>
-          <div className="text-3xl font-bold text-emerald-500">
+          <div className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
              ${amount.toFixed(2)}
           </div>
         </div>

@@ -79,7 +79,7 @@ export function CreateGroupDialog() {
         <PlusCircle className="mr-2 h-4 w-4" />
         Create Group
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Create Group</DialogTitle>
           <DialogDescription>
@@ -87,7 +87,7 @@ export function CreateGroupDialog() {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="name"
@@ -95,7 +95,7 @@ export function CreateGroupDialog() {
                 <FormItem>
                   <FormLabel>Group Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Goa Trip, Apartment Rent" {...field} />
+                    <Input placeholder="e.g. Goa Trip, Apartment Rent" autoComplete="off" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -108,7 +108,7 @@ export function CreateGroupDialog() {
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Brief description of the group" {...field} />
+                    <Input placeholder="Brief description of the group" autoComplete="off" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -139,7 +139,7 @@ export function CreateGroupDialog() {
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
                 {mutation.isPending ? "Creating..." : "Create Group"}
               </Button>
             </DialogFooter>
