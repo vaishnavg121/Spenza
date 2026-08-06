@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  apps/web-legacy:
+  apps/web:
     dependencies:
       '@base-ui/react':
         specifier: ^1.7.0
@@ -79,6 +79,9 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4

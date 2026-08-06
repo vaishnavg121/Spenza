@@ -17,7 +17,7 @@ The matrix describes final treatment. It does not authorize deletion or implemen
 | Financial rules in `docs/FINANCIAL_INVARIANTS.md` | Retain unchanged | Client strategy does not change integer money, rounding, balance, settlement, idempotency, or audit rules. |
 | Existing internal `User.id` foreign-key identity | Retain unchanged | Keep stable for ownership/history; add Clerk subject rather than replace IDs. |
 | pnpm workspace and root validation orchestration | Retain unchanged | Milestone 1 restructuring is a valid foundation for web/API work. |
-| `apps/web-legacy` directory name | Retain with modifications | Mechanically rename to `apps/web` next; preserve Git history and behavior. |
+| `apps/web` application workspace | Retain with modifications | Mechanically promoted from `apps/web-legacy`; preserve its validated behavior while hardening it incrementally. |
 | Entire repaired Next.js application | Retain with modifications | It becomes the production web/PWA foundation, not a disposable legacy reference. |
 | Next.js App Router/React/React DOM | Retain with modifications | Keep and harden using installed Next.js guidance, clear server/client boundaries, API extraction, and PWA metadata. |
 | TypeScript strict-mode intent/shared configs | Retain with modifications | Preserve strictness; add web, API, contracts, worker, and test variants without suppressions. |

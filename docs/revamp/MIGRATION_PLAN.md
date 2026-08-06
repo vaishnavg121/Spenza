@@ -4,7 +4,7 @@
 
 Use an in-place strangler migration, not a native rewrite. The repaired Next.js application is the production-client foundation. Rename it mechanically, make it responsive/installable, and then move unsafe domain slices from direct Prisma/Next.js Server Actions behind a versioned Express API while preserving working behavior.
 
-The previously completed pnpm monorepo restructuring is the baseline. This revised plan starts with promotion of `apps/web-legacy` to `apps/web`.
+The completed pnpm monorepo restructuring and Phase 1 promotion are the current baseline. The production web foundation now lives at `apps/web`.
 
 “Runnable after each phase” means:
 
@@ -19,6 +19,8 @@ The previously completed pnpm monorepo restructuring is the baseline. This revis
 Do not combine workspace rename, PWA service-worker launch, auth cutover, financial schema conversion, and production traffic cutover in one release.
 
 ## Phase 1 — Web application promotion and repository cleanup
+
+**Status:** Completed on 2026-08-06. See `docs/revamp/WEB_PROMOTION_REPORT.md`.
 
 ### Work
 

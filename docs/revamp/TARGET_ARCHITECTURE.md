@@ -4,7 +4,7 @@
 
 Spenza becomes a responsive, installable Progressive Web App built on the existing Next.js App Router application, backed by a separately deployable Express API. The browser communicates only with the HTTPS API. Prisma and Cloud SQL credentials exist only in the API/database runtime after each domain slice is migrated.
 
-The current `apps/web-legacy` workspace is promoted to `apps/web` in the next implementation milestone. Its working routes, accessible UI foundations, forms, copy, and product flows are retained where safe. Unsafe authorization, financial arithmetic, direct Prisma access, and tightly coupled Server Actions are replaced incrementally behind versioned API contracts.
+The Next.js workspace now lives at `apps/web` following its mechanical promotion from `apps/web-legacy`. Its working routes, accessible UI foundations, forms, copy, and product flows are retained where safe. Unsafe authorization, financial arithmetic, direct Prisma access, and tightly coupled Server Actions are replaced incrementally behind versioned API contracts.
 
 ```text
 Browser tab or installed PWA
@@ -59,7 +59,7 @@ Workspace dependency rules:
 - Use server rendering where it improves initial experience without caching private data incorrectly.
 - Route all migrated product data through the Express API. Server-side Next.js fetches may call the API but do not access Prisma directly.
 - Keep public marketing/static pages separable from authenticated application routes for caching and security policy.
-- Promote `apps/web-legacy` mechanically before responsive/PWA/domain changes so rename failures are distinguishable from product changes.
+- The completed mechanical promotion to `apps/web` precedes responsive/PWA/domain changes so rename failures remain distinguishable from product changes.
 
 ### UI and state
 

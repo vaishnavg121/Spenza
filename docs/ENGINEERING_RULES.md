@@ -94,7 +94,7 @@ A native Expo application is not part of the MVP baseline. Changing a baseline c
 
 - Inspect existing code, documentation, Git status, and installed framework documentation before changing behavior.
 - Work within one requested milestone. Avoid unrelated refactors, dependency updates, formatting churn, and drive-by cleanup.
-- Promote `apps/web-legacy` to `apps/web` mechanically before broader web changes; preserve the validated build throughout the rename.
+- The mechanical promotion to `apps/web` is complete. Preserve that validated foundation throughout broader web changes.
 - Preserve working behavior until its hardened replacement is tested against agreed parity criteria.
 - Keep every milestone buildable and deployable. Use feature flags or additive routing when a replacement cannot safely launch at once.
 - Never expose credentials in source, fixtures, screenshots, output, commits, browser bundles, manifests, or documentation.

@@ -7,13 +7,13 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "postinstall": "pnpm --filter @spenza/web-legacy prisma:generate",
-    "dev:web": "pnpm --filter @spenza/web-legacy dev",
-    "build:web": "pnpm --filter @spenza/web-legacy build",
+    "postinstall": "pnpm --filter @spenza/web prisma:generate",
+    "dev:web": "pnpm --filter @spenza/web dev",
+    "build:web": "pnpm --filter @spenza/web build",
     "lint": "pnpm --recursive --if-present run lint",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --recursive --if-present run test",
     "build": "pnpm --recursive --if-present run build",
-    "prisma:validate": "pnpm --filter @spenza/web-legacy prisma:validate"
+    "prisma:validate": "pnpm --filter @spenza/web prisma:validate"
   }
 }
