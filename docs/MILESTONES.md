@@ -2,323 +2,326 @@
 
 ## How to use this plan
 
-This is the execution sequence for the mobile and backend revamp. The repository audit and rationale remain in `docs/revamp/`; this document turns them into delivery gates.
+This is the execution sequence for the responsive web/PWA and backend revamp. The repository audit and rationale remain under `docs/revamp/`; `docs/revamp/PWA_STRATEGY_CHANGE.md` records why the former Expo-first plan was superseded.
 
 - Complete milestones in order unless a reviewed dependency change says otherwise.
-- Work on only the explicitly requested milestone. Each milestone may be split into smaller pull requests, but its definition of done remains the gate to the next milestone.
-- Keep the legacy Next.js application runnable until Milestone 13 is approved and its parity criteria are met.
-- Use additive schema evolution, feature flags, compatibility adapters, and reversible traffic changes so the repository and deployed system remain recoverable.
-- Re-run the affected lint, strict type-check, tests, builds, Prisma validation, and security checks at every milestone.
-- Do not use this roadmap as authorization to run a production migration, delete legacy code, rotate credentials, or change live infrastructure.
+- Work on only the explicitly requested milestone. A milestone may be split into smaller commits, but its definition of done remains the gate.
+- Keep the repaired Next.js application runnable throughout migration. Promote and harden it; do not replace it wholesale.
+- Use additive schema evolution, feature flags, compatibility adapters, and reversible traffic changes.
+- Re-run affected lint, strict type-check, tests, production builds, Prisma validation, PWA checks, and security checks at every milestone.
+- Do not use this roadmap as authorization to run a production migration, delete functioning code, rotate credentials, or change live infrastructure.
+- Financial writes are online-only for MVP and must never be queued by a service worker or browser background sync.
 
-## Milestone 1 — Repository restructuring
+The completed pnpm monorepo restructuring is the starting baseline. The milestones below define the revised PWA-first work beginning with promotion of the existing web workspace.
 
-**Goal:** Establish a pnpm workspace monorepo without changing product behavior or losing the validated legacy baseline.
+## Milestone 1 — Web application promotion and repository cleanup
 
-**Scope:** Inventory the current tree and secrets hygiene; introduce root workspace/tooling configuration; move or encapsulate the legacy Next.js app in its planned workspace; create only the package boundaries needed by later milestones; preserve Git history where practical.
+**Goal:** Promote the repaired Next.js application to the production web foundation without changing product behavior.
 
-**Files/areas:** Root `package.json`, `pnpm-workspace.yaml`, lockfile, shared TypeScript/lint configuration, proposed `apps/` and `packages/` boundaries, CI paths, documentation, and the retained legacy web workspace.
+**Scope:** Mechanically rename `apps/web-legacy` to `apps/web`; update workspace names, root scripts, paths, documentation, and CI references; preserve Git history and the validated build; confirm the PWA-first direction before removing obsolete placeholders in a separate cleanup commit.
 
-**Database changes:** None. The existing Prisma schema and migration history move only if needed as a mechanical path change and must validate identically before and after.
+**Affected areas:** `apps/web-legacy` → `apps/web`, root workspace/tooling configuration, shared lint/TypeScript config, README, CI paths, and documentation. `apps/mobile` remains `.gitkeep`-only until its separately reviewed cleanup.
 
-**API work:** No Express product API. Reserve the intended workspace and commands without implementing domain routes.
+**Database changes:** None. Prisma schema and migration state remain byte-for-byte equivalent.
 
-**Mobile work:** No Expo product application. Reserve the intended workspace only if required to validate workspace layout.
+**API work:** None. `apps/api` remains an uninitialized placeholder.
 
-**Tests:** Compare the pre/post legacy lint, strict type-check, Prisma validation, and production build; verify workspace install resolution from the existing lockfile; scan tracked filenames/content patterns for likely secrets without printing values.
+**Web/PWA work:** No PWA dependency or behavior yet. Rename and product terminology only; retain every working route and UI flow.
 
-**Exclusions:** Product behavior changes, dependency upgrades unrelated to workspace compatibility, schema changes, auth migration, new screens, and live infrastructure changes.
+**Tests:** Compare pre/post lint, strict type-check, Prisma validation, production build, route manifest, and tracked-secret scan; verify clean pnpm install and root commands.
 
-**Definition of done:** Root commands run the retained legacy quality gates; no source behavior changed; CI/docs describe workspace commands; Git status contains only reviewed restructuring changes; a clean checkout can reproduce the baseline with the documented supported runtime.
+**Exclusions:** Feature changes, responsive redesign, manifest/service worker, Express initialization, Clerk migration, schema changes, dependency upgrades, and deletion of functioning code.
 
-**Rollback:** Revert the mechanical workspace/path commit and restore the prior lockfile/configuration. No data or live-service rollback is required.
+**Definition of done:** `apps/web` reproduces the repaired baseline, all root gates pass, no source behavior or schema changed, and Git status contains only reviewed promotion/cleanup changes.
 
-## Milestone 2 — Mobile foundation
+**Rollback considerations:** Revert the mechanical rename/config commit. No data or live-service rollback is required. Remove `apps/mobile` only in a later dedicated cleanup after confirming no workspace/document reference depends on it.
 
-**Goal:** Produce a buildable Android/iOS Expo shell with agreed navigation, styling, state, forms, themes, and quality tooling.
+## Milestone 2 — Responsive design foundation
 
-**Scope:** Initialize Expo with strict TypeScript and Expo Router; configure NativeWind, TanStack Query, limited Zustand client state, React Hook Form, Zod, Reanimated, SecureStore adapter boundaries, and light/dark/OLED themes; add accessible navigation and placeholder states.
+**Goal:** Establish an accessible mobile-first layout and component foundation across phone, tablet, and desktop without adding product features.
 
-**Files/areas:** `apps/mobile`, mobile app configuration, Expo Router routes/layouts, theme tokens, shared UI foundations, platform assets, EAS configuration templates, and mobile-specific lint/test/build scripts.
+**Scope:** Inventory existing routes/components; define semantic design tokens, responsive breakpoints, page shells, navigation patterns, form/layout primitives, loading/empty/error states, and light/dark/OLED themes; retain suitable accessible components.
+
+**Affected areas:** `apps/web` layouts, global styles, UI primitives, component documentation/tests, responsive fixtures, and visual-regression setup.
 
 **Database changes:** None.
 
-**API work:** Define a typed HTTP-client boundary and local mock/test adapter only. Do not implement backend features or let mobile import Prisma/server code.
+**API work:** None beyond typed mock boundaries where required to isolate view tests.
 
-**Mobile work:** App shell, tab/stack routing, safe-area handling, error/loading/empty states, theme selection, reduced-motion support, accessible base components, and non-secret environment validation.
+**Web/PWA work:** Responsive shell, keyboard/focus behavior, touch targets, semantic navigation, reduced motion, reflow/zoom support, and placeholder states at the ranges in `docs/PWA_REQUIREMENTS.md`.
 
-**Tests:** Unit/component tests for providers, navigation guards as placeholders, theme persistence, schema parsing, and error boundaries; lint/type-check; Expo configuration validation; Android and iOS development/release bundle smoke checks where the environment permits.
+**Tests:** Component/unit tests, automated accessibility checks, keyboard flows, representative viewport/zoom visual tests, strict type-check, lint, and production build.
 
-**Exclusions:** Real authentication, groups, expenses, network financial writes, push delivery, receipt uploads, screen redesign beyond the foundation, and app-store release.
+**Exclusions:** Manifest/service worker, install prompts, real push, Clerk, domain/API migration, new expense/group features, and broad visual redesign unrelated to responsiveness/accessibility.
 
-**Definition of done:** The shell starts on supported Android and iOS targets, all three themes render accessibly, no server-only dependency enters the mobile bundle, public configuration is documented, and mobile lint/type/tests/build checks pass.
+**Definition of done:** Existing routes remain functional and render without horizontal page overflow or lost actions across the approved responsive matrix; core primitives meet the agreed accessibility baseline; all gates pass.
 
-**Rollback:** Remove or disable the isolated mobile workspace and its root-script references; the legacy web workspace remains unaffected.
+**Rollback considerations:** Responsive changes land in small component/shell commits and can be reverted independently; retain old component variants until consuming screens are verified.
 
-## Milestone 3 — API foundation
+## Milestone 3 — PWA foundation and installation
 
-**Goal:** Establish a production-oriented Express TypeScript service with secure defaults, contracts, observability, and test infrastructure.
+**Goal:** Make the responsive web application safely installable without enabling offline financial behavior.
 
-**Scope:** Create the API workspace; configure strict TypeScript, Express, Zod environment/request validation, Pino redaction, Helmet, explicit CORS, distributed-capable rate-limit abstraction, request IDs, consistent errors, health endpoints, graceful shutdown, Prisma lifecycle, and Supertest/Vitest or Jest.
+**Scope:** Add the Web App Manifest, approved icons/maskable icons, HTTPS assumptions, minimal service worker, explicit cache allowlist, static offline fallback, update/version UX, install guidance, and capability detection.
 
-**Files/areas:** `apps/api`, proposed shared contracts/config packages, Prisma client package boundary, API tests, container files, Cloud Run configuration templates, and root/CI commands.
+**Affected areas:** Next.js metadata/manifest routes, public PWA assets, service-worker source/registration, offline page, cache-policy tests, release version metadata, and PWA documentation.
 
-**Database changes:** None to domain schema. A readiness check may verify database connectivity with a least-privileged account; it must not mutate data.
+**Database changes:** None.
 
-**API work:** `/health/live`, `/health/ready`, middleware order, response/error envelopes, request ID propagation, validated configuration, and an authenticated-route placeholder that fails closed until Clerk is configured.
+**API work:** Add only cache/version headers or a public compatibility endpoint if justified; no domain endpoints.
 
-**Mobile work:** Point only a development/test client at health/version metadata if useful; no product API integration.
+**Web/PWA work:** Standalone display, start URL/scope, safe-area/installed-mode handling, Android/desktop install affordance where supported, iOS Add to Home Screen guidance, and online/offline/update states.
 
-**Tests:** Middleware ordering, error mapping, validation, body limits, CORS allow/deny, rate-limit response, request IDs, redaction, liveness/readiness, graceful shutdown, and container start with safe test configuration.
+**Tests:** Manifest/schema/icon checks; service-worker install/activate/fetch/update/rollback tests; proof that private/auth/API/receipt/mutation data is never cached; offline fallback; installation smoke tests on representative Android, Chrome, Edge, iPhone, and iPad targets where available.
 
-**Exclusions:** Domain routes, production data mutation, Clerk identity cutover, schema changes, uploads, and deployment traffic changes.
+**Exclusions:** Offline write queues, Background Sync, push delivery, Clerk migration, domain API work, app-store packaging, and native Expo initialization.
 
-**Definition of done:** API lint/type/tests/build pass; the container listens on Cloud Run's configured host/port; live/readiness semantics are correct; missing secrets fail clearly without exposure; no domain endpoint is accidentally public.
+**Definition of done:** Approved browsers recognize the PWA; supported targets can install it; normal browser use remains complete; updates are safe; offline navigation is truthful/read-only; all financial writes remain online-only.
 
-**Rollback:** Remove the isolated API deployment/workspace or scale its unused revision to zero. The legacy application continues serving users.
+**Rollback considerations:** Unregister/disable the service worker through a forward release, delete only known versioned caches, and keep the normal online Next.js application deployable without PWA enhancement.
 
-## Milestone 4 — Authentication and profiles
+## Milestone 4 — API foundation
 
-**Goal:** Implement Clerk authentication from Expo through the API and establish the new profile contract without cutting over legacy identities.
+**Goal:** Establish a production-oriented Express service with secure defaults, contracts, observability, and test infrastructure.
 
-**Scope:** Configure Clerk Expo sign-in/session flows and secure token caching; verify Clerk JWTs in Express; map verified subjects to internal users; expose `GET/PATCH /v1/me`; support approved built-in avatar identifiers; define account-linking states for legacy migration.
+**Scope:** Initialize `apps/api`; configure strict TypeScript, Express, Zod environment/request validation, Pino redaction, Helmet, explicit CORS, distributed-capable rate limiting, request IDs, typed errors, health endpoints, graceful shutdown, and Vitest/Supertest.
 
-**Files/areas:** Mobile auth routes/providers, API auth middleware/policies/profile service, contracts, environment schemas/examples, built-in avatar assets/manifest, and auth/profile tests.
+**Affected areas:** `apps/api`, `packages/contracts`, shared config, API tests, container files, root/CI scripts, and local environment examples.
 
-**Database changes:** Additive identity-mapping/profile fields or tables required for new-stack users, with uniqueness and lookup indexes. Do not remove or rewrite Better Auth tables or legacy user identifiers.
+**Database changes:** None to domain schema. A readiness check may verify connectivity with a least-privileged account without mutation.
 
-**API work:** Auth middleware, internal-user resolution, profile read/update, safe bootstrap behavior, and stable `401`/`403` errors. No group/financial authorization yet.
+**API work:** `/health/live`, `/health/ready`, middleware order, response/error envelopes, request ID propagation, body limits, cache headers, and a fail-closed authenticated placeholder.
 
-**Mobile work:** Sign-in/up/out, session restoration, protected navigation, profile editing, avatar selection, loading/error states, and token use through the typed API client.
+**Web/PWA work:** Add one typed API-client boundary and optionally consume health/version metadata; existing domain behavior remains on its working path.
 
-**Tests:** JWT verification failures and key rotation behavior, wrong issuer/audience/authorized party, missing mapping, profile validation, avatar allowlist, secure-storage adapter, protected navigation, IDOR-negative cases, and logs without tokens/PII.
+**Tests:** Middleware/error/CORS/rate-limit/cache/redaction/health/shutdown tests; container starts non-root on Cloud Run host/port conventions; web client error decoding tests.
 
-**Exclusions:** Better Auth removal, automatic production account merging, groups, financial features, social providers not explicitly approved, and bespoke avatar uploads.
+**Exclusions:** Domain routes, Clerk identity cutover, schema changes, uploads, push delivery, and production traffic changes.
 
-**Definition of done:** New test/staging users authenticate on Android/iOS, the API derives identity only from verified JWT claims, profile operations are authorized and validated, secrets are server-side, and the additive database path and rollback are reviewed.
+**Definition of done:** API lint/type/tests/build pass; container behavior and health semantics are correct; missing secrets fail safely; no domain endpoint is public accidentally; web baseline still builds.
 
-**Rollback:** Disable new auth/profile routes and mobile entry with a feature flag or deployment rollback; retain additive columns/tables unused; leave Better Auth and legacy access intact.
+**Rollback considerations:** Remove or scale the unused API revision to zero; route the web app through its prior working paths; no data rollback.
 
-## Milestone 5 — Database identity migration
+## Milestone 5 — Authentication and profiles
 
-**Goal:** Safely link eligible legacy Better Auth users to Clerk-backed internal identities and prove data ownership is preserved.
+**Goal:** Implement Clerk authentication from the Next.js application through the Express API while retaining a safe transition path for Better Auth users.
 
-**Scope:** Inspect real staging/production schema state; define matching and ambiguity policy; backfill non-destructive identity links; support controlled dual-read/dual-auth compatibility if required; reconcile users, sessions, accounts, and ownership references; prepare operator runbooks.
+**Scope:** Configure Clerk web sessions/routes; verify Clerk JWTs in Express; map verified subjects to internal users; implement `GET/PATCH /v1/me`; support approved built-in avatars; define account-linking states.
 
-**Files/areas:** Prisma schema/migrations, backfill/reconciliation scripts, identity adapter, audit queries, deployment runbook, risk register, and migration tests. Scripts must never print secret or full personal values.
+**Affected areas:** Web auth routes/middleware/providers, API auth middleware/policies/profile service, contracts, environment schemas, avatar manifest/assets, and auth/profile tests.
 
-**Database changes:** Additive constraints/indexes and backfill of Clerk subject mappings. Legacy Better Auth tables and identifiers remain. Constraint tightening occurs only after null/duplicate reconciliation proves safe.
+**Database changes:** Additive identity-mapping/profile fields or tables with uniqueness/indexes. Do not remove Better Auth tables or internal user IDs.
 
-**API work:** Resolve migrated and new users consistently, expose safe account-linking error states, and preserve object ownership. Webhook-driven identity updates are verified and idempotent.
+**API work:** Token verification, internal-user resolution, profile read/update, safe bootstrap, stable `401`/`403`, and verified/idempotent Clerk webhook handling.
 
-**Mobile work:** Handle required reauthentication/account-linking states without exposing matching data. No new product domain capability.
+**Web/PWA work:** Sign-in/up/out, session restoration, protected navigation, callback handling, profile editing, avatar selection, account-switch cleanup, and no token persistence in browser storage/service-worker caches.
 
-**Tests:** Migration on a sanitized production-shaped copy; duplicate/missing/changed-email cases; ownership counts before/after; webhook replay; rollback rehearsal; Prisma validation; API authorization regression across migrated identities.
+**Tests:** Claim failure matrix, key rotation, wrong issuer/audience/authorized party, CSRF/CORS/session behavior, profile validation, avatar allowlist, protected navigation, IDOR-negative cases, and redaction.
 
-**Exclusions:** Dropping Better Auth data, guessing ambiguous matches, rewriting financial history, live migration without backup/approval, and unrelated schema cleanup.
+**Exclusions:** Automatic ambiguous account merging, Better Auth deletion, groups, financial features, unsupported identity providers, and native auth.
 
-**Definition of done:** Every migrated record has a documented disposition; counts and ownership reconcile; ambiguous accounts are quarantined for manual resolution; backup and rollback are tested; legacy auth remains available until cutover approval.
+**Definition of done:** Staging users authenticate in supported browsers/installed modes; API identity derives only from verified claims; profile operations are authorized; browser storage/cache inspection finds no tokens; additive rollback path is approved.
 
-**Rollback:** Stop new identity writes, revert API traffic/config to the legacy-compatible path, and null/ignore additive links using the reviewed reversal procedure. Restore from the verified backup only if data reconciliation requires it.
+**Rollback considerations:** Disable Clerk routes/traffic, retain additive mappings unused, and keep Better Auth access until identity migration and rollback windows are complete.
 
-## Milestone 6 — Groups and memberships
+## Milestone 6 — Database identity migration
 
-**Goal:** Deliver authorized group, membership, role, and invitation workflows on the new API and mobile app.
+**Goal:** Safely link eligible Better Auth identities to Clerk-backed internal users while preserving ownership and financial history.
 
-**Scope:** Group create/read/update, group currency selection, membership roles/lifecycle, invitation create/revoke/accept/reject/expiry, owner transfer/last-owner protections, and historical-member access per confirmed policy.
+**Scope:** Inventory real database state; define matching/ambiguity policy; backfill non-destructive links; support controlled compatibility reads; reconcile users, sessions, accounts, and ownership; prepare operator runbooks.
 
-**Files/areas:** Group/membership/invitation Prisma models and migrations, API policies/services/routes/contracts, mobile group and invitation routes/forms, activity events, and tests.
+**Affected areas:** Prisma schema/migrations, backfill/reconciliation scripts, identity adapter, audit queries, support runbook, and risk register.
 
-**Database changes:** Additive or adapted group, membership, role, and invitation structures with unique membership constraints, invitation token hashing, expiry/status fields, and indexes. Preserve legacy group data for later verified backfill rather than overwrite it.
+**Database changes:** Additive identity constraints/indexes and bounded backfill. Legacy auth tables/identifiers remain during the retention window; never copy passwords or provider tokens to Clerk.
 
-**API work:** Versioned group/member/invitation endpoints; role-policy enforcement; cursor lists; transactional membership transitions; idempotent invitation acceptance; immutable activity entries.
+**API work:** Resolve migrated/new users consistently, expose safe linking error states, preserve ownership, and process identity webhooks idempotently.
 
-**Mobile work:** Group list/detail/create/edit, member list and role-aware actions, invitation entry/accept/reject, currency selection, and complete loading/empty/error states.
+**Web/PWA work:** Handle reauthentication/linking/manual-review states without exposing matching data; clear account-scoped query/browser state on transition.
 
-**Tests:** Role/IDOR matrix; duplicate membership; expired/revoked/replayed invitation; owner departure; concurrent acceptance; guessed IDs/tokens; pagination; activity creation; Android/iOS flows.
+**Tests:** Sanitized production-shaped migration; duplicate/missing/changed-email cases; ownership counts; webhook replay; rollback rehearsal; Prisma validation; cross-identity authorization regression.
 
-**Exclusions:** Expenses, balances, payments, contacts scraping, QR invitations, receipt uploads, and cross-currency groups.
+**Exclusions:** Guessing ambiguous matches, dropping Better Auth data, rewriting financial history, live migration without backup/approval, and unrelated schema cleanup.
 
-**Definition of done:** A user can create or join a group and see only authorized groups; every transition is transactional and audited; confirmed owner/member policies are enforced; legacy group records have a documented future migration map.
+**Definition of done:** Every candidate has a documented disposition; counts/ownership reconcile; ambiguous records are quarantined; backup/rollback are tested; legacy auth remains available until cutover approval.
 
-**Rollback:** Feature-flag new group flows and revert API/mobile deployments. Preserve additive data; do not remove new memberships created by users. Use a compatibility reader if traffic returns to legacy.
+**Rollback considerations:** Stop new linking, revert application traffic/config to compatibility mode, and ignore/null additive links through the reviewed reversal procedure; restore only when reconciliation requires it.
 
-## Milestone 7 — Expense split engine
+## Milestone 7 — Groups and memberships
+
+**Goal:** Deliver authorized group, membership, role, and invitation workflows through the API and responsive web client.
+
+**Scope:** Group CRUD/archive, group currency, membership lifecycle/roles, invitations, owner transfer/last-owner protections, and historical-member policy.
+
+**Affected areas:** Group/membership/invitation models/migrations, API services/routes/contracts/policies, web routes/forms/components, activity events, and tests.
+
+**Database changes:** Additive/adapted structures with unique membership constraints, invitation token digests, expiry/status, audit fields, and indexes. Preserve legacy records for verified backfill.
+
+**API work:** Versioned group/member/invitation endpoints; policy enforcement; cursor lists; transactional transitions; idempotent invitation acceptance; immutable activity.
+
+**Web/PWA work:** Responsive group list/detail/create/edit/member/invite flows; link handling in browser and standalone modes; complete loading/empty/error/offline-write-disabled states.
+
+**Tests:** Role/IDOR matrix; duplicate membership; expired/revoked/replayed invitation; owner departure; concurrent acceptance; guessed IDs/tokens; pagination; activity; responsive/browser journeys.
+
+**Exclusions:** Expenses, balances, contacts scraping, QR invitations, receipt uploads, and cross-currency groups.
+
+**Definition of done:** A user creates/joins groups and sees only authorized groups; transitions are transactional/audited; confirmed lifecycle policy is enforced; working prior paths are removed only after parity.
+
+**Rollback considerations:** Feature-flag new group API/UI paths, preserve additive data, and route users to the last compatible working implementation without deleting memberships.
+
+## Milestone 8 — Expense split engine
 
 **Goal:** Implement the authoritative, tested expense engine for all MVP split methods and multiple payers.
 
-**Scope:** Expense create/read/edit/void; equal, exact, percentage, and shares allocation; multiple payers; integer-minor-unit validation; deterministic rounding; optimistic concurrency; idempotency; immutable activity.
+**Scope:** Expense create/read/edit/void; equal/exact/percentage/shares allocation; multiple payers; integer-minor-unit validation; deterministic rounding; optimistic concurrency; idempotency; immutable activity.
 
-**Files/areas:** Shared pure financial engine, financial contracts, Prisma expense/revision/payer/allocation/idempotency structures, API services/routes/policies, mobile expense forms/detail/edit flows, and test fixtures.
+**Affected areas:** Pure domain engine, financial contracts, Prisma expense/revision/payer/allocation/idempotency structures, API services/routes/policies, responsive forms/details, and fixtures.
 
-**Database changes:** Additive financial structures using `BIGINT` minor units, currency, stable allocation order, record version/status, revision/audit links, payer/allocation constraints, idempotency records, and required indexes. Do not alter old financial columns destructively.
+**Database changes:** Additive financial structures using `BIGINT` minor units, currency, stable allocation order, versions/status/revisions, actor/audit links, idempotency, constraints, and indexes. Do not destructively alter old columns.
 
-**API work:** Expense endpoints and validation from `docs/API_CONVENTIONS.md`; group/member authorization; transactional write plus activity; server-returned allocations; version conflict and idempotent replay behavior.
+**API work:** Expense endpoints and preview; group/member authorization; transactional writes plus activity/outbox; authoritative stored allocations; version conflict and idempotent replay.
 
-**Mobile work:** Draft and validate payer/split forms, exact reconciliation feedback, server preview/submit, pending optimistic state with rollback, details/revisions, and explicit void confirmation.
+**Web/PWA work:** Responsive payer/split forms, reconciliation feedback, explicit online requirement, pending/rollback state, details/revisions, and void confirmation. No service-worker mutation queue.
 
-**Tests:** Every example/property in `docs/FINANCIAL_INVARIANTS.md`; large values; malformed minor units; duplicate/ineligible participants; multi-payer totals; retry/concurrency; transaction fault injection; IDOR; mobile form and optimistic rollback.
+**Tests:** Every example/property in `docs/FINANCIAL_INVARIANTS.md`; large values; malformed minor units; membership tampering; multi-payer totals; retry/concurrency/fault injection; IDOR; form/accessibility/offline behavior.
 
-**Exclusions:** Balance simplification, settlements, currency conversion, recurring/offline writes, OCR, AI categorization, and legacy financial-data cutover unless separately approved within the schema plan.
+**Exclusions:** Settlements, currency conversion, recurring/offline writes, OCR, AI categorization, and unapproved legacy-data cutover.
 
-**Definition of done:** All supported calculations conserve value exactly and deterministically; create/edit/void are authorized, transactional, idempotent/versioned, and audited; no floating-point authoritative money path exists; mobile reconciles to server results.
+**Definition of done:** Calculations conserve value exactly/deterministically; writes are authorized, transactional, idempotent/versioned/audited; no floating-point authoritative path exists; UI reconciles to server results.
 
-**Rollback:** Disable new expense writes first, retain read/audit access, and roll back API/mobile code to the prior compatible version. Keep additive financial records and schema; never delete committed user data as rollback.
+**Rollback considerations:** Disable new writes first, retain read/audit access, revert API/web to the last compatible writer, and keep additive financial records/schema intact.
 
-## Milestone 8 — Balances and settlements
+## Milestone 9 — Balances and settlements
 
 **Goal:** Provide reproducible group balances and auditable settlement/reversal workflows.
 
-**Scope:** Derive per-member net positions from active expense contributions/allocations and settlements; expose group balances; record settlements and linked reversals; optionally present deterministic debt suggestions that do not become ledger truth.
+**Scope:** Derive net positions from active expenses and settlements; expose balances; record settlements and linked reversals; optionally show deterministic non-authoritative debt suggestions.
 
-**Files/areas:** Balance projection/service, settlement/reversal models and migrations, API routes/contracts/policies, mobile balances and settlement flows, reconciliation tools, and tests.
+**Affected areas:** Balance projection/service, settlement/reversal models/migrations, API routes/contracts/policies, responsive balance/settlement UI, reconciliation tools, and tests.
 
-**Database changes:** Additive settlement/reversal tables with integer minor units, currency, actor/effective date, idempotency, immutable links, and indexes. Any balance cache/materialized view is disposable and rebuildable.
+**Database changes:** Additive settlement/reversal structures with integer minor units, currency, actor/effective date, idempotency, immutable links, and indexes. Caches/read models remain rebuildable.
 
-**API work:** Balance read endpoint; settlement create/read and reversal endpoints; transaction, authorization, idempotency, activity, and concurrency rules; per-currency output.
+**API work:** Balance read; settlement create/read/reversal; authorization, transaction, idempotency, activity, concurrency, and per-currency output.
 
-**Mobile work:** Clear owed/owing direction, member breakdown, settlement form/history/reversal state, server reconciliation, and no implication that Spenza transfers money.
+**Web/PWA work:** Clear owed/owing direction, accessible member breakdown, settlement/history/reversal states, online-only submission, visible conflict/retry behavior, and no claim that Spenza moves money.
 
-**Tests:** Zero-sum property across random valid sequences; multiple payers; edits/voids; settlement and single reversal; duplicate retries; concurrent writes; mixed-currency rejection; cache rebuild comparison; IDOR and former-member policy.
+**Tests:** Zero-sum property; multiple payers; edit/void; settlement/single reversal; retries/concurrency; mixed-currency rejection; cache rebuild; IDOR/former-member policy; responsive/accessibility flows.
 
-**Exclusions:** Payment processing, bank links, automatic transfers, currency conversion, settlement deletion, and complex debt optimization presented as authoritative history.
+**Exclusions:** Payment processing, bank links, automatic transfers, conversion, settlement deletion, offline settlement queue, and authoritative debt optimization.
 
-**Definition of done:** Balances reproduce from source records and sum to zero per group/currency; settlements and reversals affect positions exactly once; UI direction is unambiguous; reconciliation checks pass against production-shaped data.
+**Definition of done:** Balances reproduce from source records and sum to zero per group/currency; settlement effects apply exactly once; UI direction is unambiguous; reconciliation passes.
 
-**Rollback:** Disable settlement writes, keep records readable, rebuild/discard projections, and revert API/mobile deployment. Never mutate historical settlements to imitate rollback.
+**Rollback considerations:** Disable settlement writes, keep records readable, rebuild/discard projections, and revert compatible API/web revisions without mutating history.
 
-## Milestone 9 — Dashboard and activity
+## Milestone 10 — Dashboard and activity
 
-**Goal:** Give members a useful, authorized overview and immutable timeline based on committed domain events.
+**Goal:** Give members an authorized responsive overview and immutable timeline based on committed events.
 
-**Scope:** Dashboard summaries for groups, net positions, unsettled items, and recent activity; paginated activity with typed events and actor/target representations; read models optimized without becoming sources of truth.
+**Scope:** Dashboard summaries, net positions, unsettled items, recent activity, and paginated typed activity events/read models.
 
-**Files/areas:** Dashboard/activity queries and projections, API endpoints/contracts, mobile dashboard/activity routes and components, activity renderer registry, indexes, and tests.
+**Affected areas:** Dashboard/activity queries/projections, API endpoints/contracts, web routes/components, activity renderer registry, indexes, and tests.
 
-**Database changes:** Additive activity fields/indexes or rebuildable read models. Historical events remain append-only; backfills are deterministic and marked with provenance.
+**Database changes:** Additive activity fields/indexes or rebuildable read models. Events remain append-only; backfills are deterministic and provenance-marked.
 
-**API work:** Authorized dashboard summary and cursor activity endpoints; per-currency grouping; stable event representations; bounded query plans.
+**API work:** Authorized dashboard summary and cursor activity endpoints; per-currency grouping; stable event representations; bounded query plans and private cache headers.
 
-**Mobile work:** Dashboard cards, recent activity, full timeline, refresh/error/empty states, redacted or fallback rendering for inaccessible/deleted referenced objects, and theme/accessibility coverage.
+**Web/PWA work:** Responsive cards/timeline, refresh/loading/error/empty/stale states, accessible chart alternatives, and safe rendering for inaccessible/deleted references.
 
-**Tests:** Authorization leakage, cursor stability, event ordering/ties, each financial/member event renderer, per-currency totals, query-count/performance thresholds, inaccessible historical references, and Android/iOS UI states.
+**Tests:** Authorization leakage; cursor stability/order ties; renderer coverage; currency reconciliation; query budgets; inaccessible references; responsive/keyboard/screen-reader states.
 
-**Exclusions:** Arbitrary analytics builder, social reactions/comments, AI summaries, exports, and notification delivery.
+**Exclusions:** Arbitrary analytics builder, comments/reactions, AI summaries, exports, notification delivery, and offline authoritative dashboards.
 
-**Definition of done:** Dashboard totals reconcile with balance APIs; activity is complete for defined events, immutable, paginated, and authorization-safe; agreed representative datasets meet performance targets.
+**Definition of done:** Dashboard totals reconcile with balance APIs; activity is complete, immutable, paginated, authorization-safe, and performant across approved layouts.
 
-**Rollback:** Route clients back to basic group/balance views, disable dashboard projections, and preserve all activity rows. Rebuild read models after correction rather than editing source events.
+**Rollback considerations:** Route users to basic group/balance views, disable projections, preserve events, and rebuild read models rather than editing source history.
 
-## Milestone 10 — Search and analytics
+## Milestone 11 — Search and analytics
 
 **Goal:** Add bounded, permission-safe discovery and basic descriptive analytics over authoritative data.
 
-**Scope:** Search/filter accessible expenses and activity; category/member/date/status filters; documented sort/cursors; basic spending and contribution summaries within one currency context.
+**Scope:** Search/filter accessible expenses/activity; category/member/date/status filters; documented sorting/cursors; single-currency spending/contribution summaries.
 
-**Files/areas:** Search/analytics query services, contracts/routes, indexes or rebuildable views, mobile search/filter UI and charts, query budgets, and tests.
+**Affected areas:** Search/analytics query services, contracts/routes, indexes/read models, responsive filter/results/chart UI, query budgets, and tests.
 
-**Database changes:** Additive indexes/materialized views only after query-plan evidence. No denormalized value becomes authoritative, and every projection has a rebuild/reconciliation procedure.
+**Database changes:** Additive indexes/materialized views only after query-plan evidence. Projections remain non-authoritative and rebuildable.
 
-**API work:** Bounded search and analytics endpoints with allowlisted filters/sorts, cursor pagination, authorization applied before search, per-currency results, and safe rate limits.
+**API work:** Bounded allowlisted filters/sorts, cursor pagination, authorization-before-search, per-currency results, private cache headers, and route-specific rate limits.
 
-**Mobile work:** Search entry/results, filter controls, recent/cleared query state, empty/error states, and accessible basic charts/summaries that never combine currencies silently.
+**Web/PWA work:** Responsive search/results/filter controls, URL-safe non-sensitive filter state, accessible summaries/charts, and honest empty/error/stale/offline states.
 
-**Tests:** IDOR/search leakage, filter combinations, cursor determinism, malformed/expensive queries, analytics reconciliation, currency separation, date boundary/timezone cases, index/query-plan thresholds, and rate limiting.
+**Tests:** IDOR/search leakage; filter combinations; cursor determinism; malformed/expensive queries; analytics reconciliation; currencies; dates/time zones; query plans; rate limits; responsive accessibility.
 
-**Exclusions:** OCR, AI insights, prediction, exchange rates, budgets, exports, arbitrary SQL/reporting, and cross-group global amounts that mix currencies.
+**Exclusions:** OCR, AI insights, prediction, exchange rates, budgets, exports, arbitrary reporting, and silent cross-currency aggregation.
 
-**Definition of done:** Search returns only authorized records within performance bounds; analytics reconcile to source queries and state their date/currency semantics; mobile output is accessible and honest about empty/partial data.
+**Definition of done:** Only authorized records return within performance bounds; analytics reconcile and state date/currency semantics; UI remains accessible and truthful about partial/unavailable data.
 
-**Rollback:** Disable search/analytics routes and UI entry points; drop only disposable projections in a later reviewed cleanup, leaving source records untouched.
+**Rollback considerations:** Disable search/analytics routes and entry points; leave source records untouched; remove disposable projections only in later reviewed cleanup.
 
-## Milestone 11 — Notifications and receipt uploads
+## Milestone 12 — Notifications and receipt uploads
 
-**Goal:** Deliver private receipt-image handling and reliable, preference-aware push notifications.
+**Goal:** Deliver private receipt handling and reliable, preference-aware browser notifications where supported.
 
-**Scope:** GCS signed upload/finalize/read lifecycle; receipt association/replacement/removal; Expo device-token registration and preferences; transactional outbox events; provider delivery worker, retries, deduplication, and minimal payloads.
+**Scope:** GCS signed upload/finalize/read lifecycle; receipt association/replacement/removal; Push API subscription/preferences; transactional outbox; delivery worker/retries/deduplication; capability fallbacks.
 
-**Files/areas:** Receipt/device/outbox Prisma models and migrations, storage/notification adapters, API routes/policies/contracts, worker configuration, mobile image picker/upload/viewer and notification setup, GCS lifecycle/CORS, and tests.
+**Affected areas:** Receipt/push-subscription/outbox models/migrations, storage/notification adapters, API routes/policies/contracts, worker config, web upload/viewer/permission/deep-link UI, service-worker push handling, GCS CORS/lifecycle, and tests.
 
-**Database changes:** Additive receipt metadata, device registration, notification preference, outbox/delivery-attempt, and deduplication structures. Binary images remain in private GCS, not PostgreSQL.
+**Database changes:** Additive receipt metadata, push subscription, notification preference, outbox/delivery-attempt, and deduplication structures. Binary images remain in private GCS.
 
-**API work:** Authorized signed upload request/finalize/read/remove; device register/unregister/preferences; outbox processing; ownership checks; expiry and limits; no public bucket URLs.
+**API work:** Signed upload/finalize/read/remove; push subscribe/unsubscribe/preferences; outbox processing; ownership/expiry/limits; no public bucket URLs.
 
-**Mobile work:** Permission education, device registration refresh, preference controls, receipt selection/compression where approved, progress/retry/cancel, authorized viewing, notification deep links with post-navigation authorization refresh.
+**Web/PWA work:** File selection/upload progress/retry/cancel; authorized viewing; user-gesture permission education; Android/desktop/iOS Home Screen capability detection; safe notification deep links with reauthorization.
 
-**Tests:** Malicious/oversized/mismatched uploads; guessed/cross-group receipt IDs; signed URL scope/expiry; orphan cleanup; duplicate finalization; revoked device tokens; notification dedupe/retry; privacy-safe payload/logs; deep-link auth; provider failure.
+**Tests:** Malicious/oversized/mismatched uploads; cross-group IDs; URL scope/expiry; orphan cleanup; duplicate finalization; subscription rotation/account switch; notification dedupe/privacy; unsupported/denied push; deep-link authorization; provider failure.
 
-**Exclusions:** OCR, public receipts, arbitrary files, AI parsing, background offline financial writes, marketing notifications, and notification content with sensitive lock-screen details.
+**Exclusions:** OCR, public receipts, arbitrary files, AI parsing, background financial writes, marketing notifications, and sensitive lock-screen content.
 
-**Definition of done:** Receipts remain private and authorized end to end; object metadata is verified before association; notifications originate from committed outbox events, respect preferences, and retry without duplicates; secrets/URLs/tokens are redacted.
+**Definition of done:** Receipts remain private/authorized; metadata is verified; notifications originate from committed outbox events, respect preferences, retry without duplicates, and degrade to in-app state where push is unavailable.
 
-**Rollback:** Disable new uploads and notification dispatch, stop workers, retain metadata/outbox for recovery, expire signed operations, and revert client/API deployment. Apply lifecycle cleanup only to verified orphan objects.
+**Rollback considerations:** Disable uploads and push dispatch independently, stop workers, retain metadata/outbox, expire signed operations, and apply lifecycle cleanup only to verified orphan objects.
 
-## Milestone 12 — Testing and deployment
+## Milestone 13 — Testing, deployment and PWA release
 
-**Goal:** Prove release readiness and establish repeatable delivery to EAS and Google Cloud Run/Cloud SQL/GCS/Secret Manager.
+**Goal:** Prove production readiness and establish repeatable Next.js/PWA and API delivery on approved infrastructure.
 
-**Scope:** Complete test pyramid and CI gates; production containers; environment promotion; migration job separation; Cloud Run service; Cloud SQL connectivity; Secret Manager injection; bucket/service accounts; EAS profiles; observability, backups, restore, rollout, and incident runbooks.
+**Scope:** Complete CI/test pyramid; production containers/hosting; environment promotion; migration jobs; Cloud Run/Cloud SQL/Secret Manager/GCS; web hosting/domain/CDN; observability/backups; PWA release/update/rollback runbooks.
 
-**Files/areas:** CI/CD workflows, test suites/fixtures, container/build files, infrastructure definitions or reviewed scripts, EAS configuration, environment schemas/examples, runbooks, dashboards/alerts, and release checklist.
+**Affected areas:** CI/CD, tests/fixtures, containers/build files, hosting/infrastructure definitions, environment schemas, service-worker release controls, runbooks, dashboards/alerts, and release checklist.
 
-**Database changes:** No feature schema by default. Rehearse all pending migrations on a production-shaped restore; execute live migrations only through an explicitly approved, backed-up, least-privileged deployment step.
+**Database changes:** No feature schema by default. Rehearse pending migrations on a production-shaped restore; execute live migrations only through an explicitly approved, backed-up, least-privileged step.
 
-**API work:** Load/security testing, health/readiness, shutdown, connection-pool sizing, Cloud Run concurrency, timeouts, structured logging/metrics, and staged revision/traffic rollout.
+**API work:** Load/security tests, health/readiness/shutdown, pool sizing, Cloud Run concurrency/timeouts, logs/metrics, staged revision rollout, and compatibility with supported PWA versions.
 
-**Mobile work:** Android/iOS release builds, environment separation, signing/credential handling through approved systems, deep-link/push checks, accessibility/performance/crash testing, and staged internal distribution.
+**Web/PWA work:** Production Next.js hosting, HTTPS/domain, cache/CDN headers, manifest/icon/install/update/offline validation, push/deep links, responsive/accessibility/performance/security testing, and staged web release.
 
-**Tests:** Full lint/type/unit/integration/contract/build matrix; migration and rollback rehearsal; end-to-end critical journeys; authorization/IDOR suite; financial invariant suite; upload/notification tests; load/soak thresholds; backup restore and reconciliation; secret/redaction checks.
+**Tests:** Full lint/type/unit/integration/contract/build matrix; migration/rollback; critical E2E; authorization/IDOR; financial invariants; uploads/push; load/soak; backup restore; secret/redaction; browser/install/service-worker matrix.
 
-**Exclusions:** Unapproved production launch, new product features, legacy deletion, ad hoc credential sharing, and bypassing failed quality/security gates.
+**Exclusions:** Unapproved production launch, new product features, native apps/app stores, destructive legacy data cleanup, ad hoc credentials, and bypassing failed gates.
 
-**Definition of done:** A documented pipeline reproducibly builds and deploys isolated staging releases; all gates pass; production configuration contains no mobile secrets; least privilege is reviewed; backup restore and rollback are exercised; launch approval criteria and owners are explicit.
+**Definition of done:** Staging and production releases are reproducible; all gates pass; browser bundles contain no secrets; least privilege/restore/rollback are exercised; PWA limitations and supported matrix are published; launch owners approve.
 
-**Rollback:** Shift Cloud Run traffic to the last healthy compatible revision, halt mobile rollout through store/EAS controls, disable affected flags/workers, and follow the tested database forward/restore decision tree. Preserve evidence and notify owners.
+**Rollback considerations:** Roll back Next.js and Cloud Run revisions compatibly, deploy a forward service-worker cache version, halt workers/feature flags, and follow the tested database forward/restore decision tree.
 
-## Milestone 13 — Legacy removal
+## Milestone 14 — Later native and advanced enhancements
 
-**Goal:** Remove the legacy Next.js/Better Auth path only after replacement parity, migration, and rollback evidence are approved.
+**Goal:** Evaluate native clients and post-MVP capabilities as independent, evidence-based increments after PWA production maturity.
 
-**Scope:** Final feature/data reconciliation; freeze legacy writes; observe the new stack through the agreed stability window; archive necessary history/docs; remove legacy source, dependencies, routes, configuration, and eventually obsolete auth/database structures through separate reviewed cleanup.
+**Scope:** Candidate slices include Expo/native apps, app-store distribution, receipt OCR, AI categorization/insights, budgets, conversion, recurring expenses, offline financial writes, comments/reactions, exports, QR invitations, and advanced animation.
 
-**Files/areas:** Legacy web workspace, Better Auth integration, obsolete packages/scripts/env variables, compatibility adapters, deployment configuration, archived documentation, Prisma cleanup migrations, and final reuse matrix.
+**Affected areas:** Determined per approved product brief. If native is approved, initialize it in a new dedicated milestone with explicit PWA/API compatibility rather than reviving obsolete assumptions silently.
 
-**Database changes:** Cleanup is last and separately reviewed. Drop obsolete columns/tables only after verified backups, retention/privacy review, zero-read/write telemetry, reconciliation, and a tested restore path. Never edit historical migrations.
+**Database changes:** Additive and slice-specific. AI/OCR provenance, recurring schedules, exchange rates, or offline conflict metadata require dedicated retention/migration/rollback designs.
 
-**API work:** Remove temporary compatibility/dual-read paths after telemetry confirms no clients depend on them; keep stable `v1` contracts for supported mobile versions.
+**API work:** Versioned bounded endpoints with authorization, idempotency, privacy, cost controls, provenance, and compatibility for existing PWA clients.
 
-**Mobile work:** Enforce minimum supported version only through an approved release policy; ensure current store builds no longer depend on legacy endpoints.
+**Web/PWA work:** Feature-flagged enhancements with consent, uncertainty, accessibility, offline/conflict states, and graceful fallback. The PWA remains a supported client even if native apps are later added.
 
-**Tests:** Full regression/e2e; legacy/new record-count and financial reconciliation; production access-log dependency checks; rollback drill before destructive cleanup; cold restore; secret/config reference scan; repository build from clean checkout.
+**Tests:** Slice-specific unit/integration/E2E/security/performance tests plus the complete financial regression suite; native work adds approved Android/iOS build/device/store tests.
 
-**Exclusions:** New features, opportunistic redesign, unrelated dependency upgrades, immediate destruction after cutover, and removal based only on code inspection.
+**Exclusions:** Treating candidates as one release, bypassing product approval, unreviewed personal-data sharing, auto-posting generated financial values, weakening invariants, or making native mandatory without a support plan.
 
-**Definition of done:** Product/security/data owners approve parity; new stack meets the stability window; no supported client or job calls legacy services; required records are retained; source/config cleanup passes all gates; destructive database cleanup, if approved, is independently documented and recoverable.
+**Definition of done:** Each chosen slice has approved scope/metrics, updated contracts/invariants, recorded privacy/security/cost/accessibility risks, tested rollout/rollback, and an independent disable path.
 
-**Rollback:** Before destructive cleanup, re-enable legacy read/write routing using the rehearsed compatibility path. After cleanup, restore the archived deployment and database backup to an isolated environment, reconcile, and execute the approved recovery plan rather than improvising schema changes.
-
-## Milestone 14 — Later enhancements
-
-**Goal:** Evaluate and deliver post-MVP capabilities as independently approved, privacy-conscious increments after the core system is stable.
-
-**Scope:** Candidate slices are receipt OCR, AI categorization/insights, budget prediction, currency conversion, recurring expenses, offline financial writes, comments/reactions, PDF/spreadsheet exports, QR invitations, advanced animation, and additional themes. Each candidate requires its own product brief and technical/security review.
-
-**Files/areas:** Determined per approved slice. Experimental providers and models stay behind interfaces/feature flags and outside the authoritative financial engine unless a separate invariant update is approved.
-
-**Database changes:** Additive and slice-specific. AI/OCR provenance, recurring schedules, exchange-rate sources, offline conflict metadata, or social/export data require dedicated retention, migration, and rollback designs before schema work.
-
-**API work:** Versioned, bounded endpoints with explicit authorization, idempotency, privacy, cost controls, and provenance. Generated suggestions never silently mutate financial records.
-
-**Mobile work:** Feature-flagged experiences with clear consent, uncertainty, accessibility, offline/conflict states where relevant, and graceful fallback when providers are unavailable.
-
-**Tests:** Slice-specific unit/integration/e2e/security/performance tests plus the complete financial regression suite. AI/OCR features need evaluation datasets and human-confirmation paths; currency conversion needs rate-source/time/rounding tests; offline writes need conflict/replay tests.
-
-**Exclusions:** Treating this list as one release, bypassing product approval, unreviewed personal-data sharing, auto-posting generated financial values, or weakening MVP invariants.
-
-**Definition of done:** For each chosen slice, scope and success metrics are approved; privacy/security/cost/accessibility risks are recorded; contracts and invariants are updated; rollout and rollback are tested; feature flags allow safe disablement. Unselected candidates remain unimplemented.
-
-**Rollback:** Disable the individual feature flag/provider, stop its jobs, preserve authoritative MVP records, and apply the slice's approved data-retention/cleanup plan. A failed enhancement must not prevent core expense or settlement operation.
+**Rollback considerations:** Disable the individual feature/provider/client rollout, preserve authoritative MVP records, and follow the slice-specific retention/cleanup plan. A failed enhancement must not prevent core PWA expense or settlement use.
 
 ## Cross-milestone confirmation gates
 
-Before beginning implementation, owners must confirm the open decisions in `docs/PRODUCT_SCOPE.md`, especially supported currencies, Clerk account linking, invitation/member lifecycle, financial correction permissions, upload policy, notification defaults, recovery objectives, and launch environments. Decisions that change financial behavior require an update to `docs/FINANCIAL_INVARIANTS.md` before code is written.
+Before implementation, owners must confirm open decisions in `docs/PRODUCT_SCOPE.md` and `docs/PWA_REQUIREMENTS.md`, especially browser support, hosting/origins, manifest branding, Clerk linking, invitations/memberships, financial correction permissions, upload policy, Web Push policy, recovery objectives, and launch environments. Decisions that change financial behavior require an update to `docs/FINANCIAL_INVARIANTS.md` before code is written.

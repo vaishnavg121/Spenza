@@ -2,67 +2,78 @@
 
 ## Classification rules
 
-- **Retain unchanged** — safe artifact or product fact that can remain as-is.
-- **Retain with modifications** — useful foundation that requires targeted redesign, decoupling, or hardening.
-- **Rewrite** — behavior is useful, but the implementation is coupled, unsafe, or incompatible with the target.
-- **Archive temporarily** — keep runnable/readable during migration, then remove from the active product.
+- **Retain unchanged** — safe artifact, validated fact, or invariant that can remain as-is.
+- **Retain with modifications** — useful foundation requiring targeted hardening, decoupling, accessibility, responsive, or security work.
+- **Rewrite** — behavior is useful but implementation is unsafe, incorrect, or coupled to the wrong boundary.
+- **Archive temporarily** — keep runnable/readable through migration and retention windows, then remove from the active path.
 - **Delete after migration** — remove only after replacement, reconciliation, rollback, and retention gates pass.
 
-The classification describes the intended final treatment, not permission to change files during this audit.
+The matrix describes final treatment. It does not authorize deletion or implementation outside the requested milestone.
 
-| Area / important part | Classification | Reuse rationale and required action |
-|---|---|---|
-| Git history and repository identity | Retain unchanged | Preserve provenance and use tags around migration checkpoints |
-| Product name “Spenza” and core expense-sharing concept | Retain unchanged | Subject to trademark/product confirmation; it is the only established brand element |
-| Existing internal `User.id` foreign-key identity | Retain unchanged | Keep stable for financial history; add Clerk subject instead of replacing IDs |
-| `tsconfig.json` strict-mode intent | Retain with modifications | Preserve strictness through shared configs; split Node, React Native, and legacy variants |
-| `.gitignore` secret/build exclusions | Retain with modifications | Preserve protections; extend for pnpm, Expo/EAS local state, coverage, native signing, and generated artifacts |
-| Prisma conceptual entities and enums | Retain with modifications | Users, groups, expenses, splits, settlements, notifications, and activity are useful domain vocabulary |
-| `prisma/schema.prisma` as production schema | Rewrite | Replace Float money, auth coupling, invite/receipt/notification gaps, cascade policy, and missing audit/idempotency constraints through additive migrations |
-| Existing production/internal database records | Retain with modifications | Preserve and reconcile; backfill to redesigned fields after actual-database discovery |
-| Group/member relationships and role intent | Retain with modifications | Add lifecycle, invitation, audit, leave/remove, authorization, and indexing semantics |
-| Split types EQUAL/EXACT/PERCENTAGE/SHARES | Retain with modifications | Preserve product behavior after rules are specified and rebuilt with deterministic decimal arithmetic |
-| `CUSTOM` split enum | Archive temporarily | Do not expose until semantics exist; remove later if product does not approve it |
-| Currency list and per-group currency idea | Retain with modifications | Replace hard-coded symbols/free strings with ISO policy and currency-scoped invariants |
-| Dashboard metric concepts | Retain with modifications | Keep “you owe/are owed,” trends, and activity after precise definitions and database aggregation |
-| Activity action concept | Retain with modifications | Replace mislabeled actions and loose JSON with typed events/audit metadata |
-| Screen hierarchy and user-facing copy | Retain with modifications | Use as a product/design brief; rewrite layouts for native navigation, accessibility, and platform conventions |
-| `src/actions/expenses.ts` calculation code | Rewrite | Treat only as examples; current code uses Float, trusts participant IDs, accepts broken CUSTOM, and is Next-coupled |
-| `src/components/groups/group-balances.tsx` algorithm | Rewrite | Move into pure tested domain code; add currency, deterministic ordering, and authoritative API behavior |
-| Friend request behavior | Rewrite | Fix symmetric uniqueness, declined retries, email enumeration, concurrency, and activity semantics |
-| Group Server Actions | Rewrite | Replace Next headers/revalidation and raw Prisma returns with authorized service/API contracts |
-| Settlement Server Action/UI | Rewrite | Add party/group/debt authorization, idempotency, state policy, currency, confirmation/reversal, and tests |
-| Dashboard Server Action | Rewrite | Replace full in-memory scans and mixed-currency aggregation with indexed server queries/read models |
-| Zod validation approach | Retain with modifications | Keep Zod, make it a direct dependency, separate input/output schemas, and share transport-safe contracts |
-| TanStack Query approach | Retain with modifications | Reuse in Expo with centralized API client, query keys, offline/focus behavior, and mutation idempotency |
-| React Hook Form approach | Retain with modifications | Reuse with React Native fields and correct Zod input/output typing |
-| `date-fns` | Retain with modifications | Reuse only with explicit UTC/user-time-zone rules |
-| `clsx`/class composition ideas | Retain with modifications | Reuse where NativeWind benefits; do not carry DOM utility assumptions |
-| Better Auth user profile data | Retain with modifications | Migrate/link safe profile data to internal users after verified conflict handling |
-| Better Auth runtime, client, route, proxy session checks | Delete after migration | Clerk Expo/JWT replaces them after account transition and rollback window |
-| Better Auth Session/Account/Verification data | Archive temporarily | Keep read-only for transition/retention; never copy passwords/tokens into Clerk; drop only with approval |
-| Entire repaired Next app under `apps/web-legacy` | Archive temporarily | Keep as runnable behavioral reference and fallback until mobile/API parity is accepted |
-| `src/app` pages/layouts | Rewrite | DOM/Next implementations cannot become Expo Router screens; preserve only flow intent |
-| `src/components` feature components | Rewrite | Replace HTML, web dialogs, web charts, and browser form controls with native components |
-| `src/components/ui` shadcn/Base UI components | Delete after migration | Web-only and currently type-incompatible; remove after native design system covers required states |
-| `globals.css` neutral tokens | Retain with modifications | Extract any approved semantic tokens; define a native-accessible brand system rather than copying CSS |
-| `src/lib/db.ts` | Rewrite | Prisma client belongs in API-only database package with correct lifecycle, config, pool, and shutdown behavior |
-| `src/lib/utils.ts` `cn` helper | Retain with modifications | A similar helper may remain if NativeWind requires it; do not force web tailwind-merge behavior |
-| `package.json` scripts/dependency set | Rewrite | Convert to pnpm workspace scripts and split mobile/API/legacy dependencies by package |
-| `package-lock.json` | Delete after migration | Remove only after reviewed, reproducible `pnpm-lock.yaml` succeeds in clean CI |
-| Next/React DOM/Base UI/Radix/next-themes dependencies | Delete after migration | Needed only by archived web app; do not place in mobile workspace |
-| Recharts, Sonner, Lucide React, Framer Motion | Delete after migration | Replace with RN-compatible chart/feedback/icon/Reanimated choices; Framer Motion is currently unused |
-| Tailwind PostCSS and web animation pipeline | Delete after migration | NativeWind requires a mobile-specific configuration, not the current web CSS pipeline |
-| Prisma 5.22 packages | Retain with modifications | Keep temporarily for compatibility, then perform a deliberate supported-version migration in API/database packages |
-| `supabase/config.toml` and `supabase` CLI dependency | Delete after migration | Application does not use them and target infrastructure is Google Cloud; retain only until actual DB provenance is confirmed |
-| Ignored `src/generated/prisma` | Delete after migration | Stale/untracked generated output is not imported; regenerate only from the authoritative API database package |
-| Stock `public/*.svg` Next/Vercel assets | Delete after migration | Not Spenza branding and not useful mobile assets |
-| Favicon | Archive temporarily | Keep with legacy web; replace with approved mobile/web brand asset set |
-| README and current documentation | Rewrite | Replace create-next-app text with monorepo, local environment, architecture, migration, API, deployment, and runbooks |
-| Tests | Rewrite | No tests exist; create domain, API, migration, mobile, security, and deployment suites from scratch |
-| Deployment configuration | Rewrite | None exists; create Cloud Run/Cloud SQL/GCS/Secret Manager and EAS configuration |
+| Area / important part | Classification | PWA-first rationale and required action |
+| --- | --- | --- |
+| Git history and repository identity | Retain unchanged | Preserve provenance and tag migration checkpoints. |
+| Product name “Spenza” and expense-sharing concept | Retain unchanged | Only established brand/product identity; confirm trademark and final visual system separately. |
+| Financial rules in `docs/FINANCIAL_INVARIANTS.md` | Retain unchanged | Client strategy does not change integer money, rounding, balance, settlement, idempotency, or audit rules. |
+| Existing internal `User.id` foreign-key identity | Retain unchanged | Keep stable for ownership/history; add Clerk subject rather than replace IDs. |
+| pnpm workspace and root validation orchestration | Retain unchanged | Milestone 1 restructuring is a valid foundation for web/API work. |
+| `apps/web-legacy` directory name | Retain with modifications | Mechanically rename to `apps/web` next; preserve Git history and behavior. |
+| Entire repaired Next.js application | Retain with modifications | It becomes the production web/PWA foundation, not a disposable legacy reference. |
+| Next.js App Router/React/React DOM | Retain with modifications | Keep and harden using installed Next.js guidance, clear server/client boundaries, API extraction, and PWA metadata. |
+| TypeScript strict-mode intent/shared configs | Retain with modifications | Preserve strictness; add web, API, contracts, worker, and test variants without suppressions. |
+| Tailwind CSS/global semantic tokens | Retain with modifications | Keep web styling; extract accessible semantic tokens and responsive/light/dark/OLED foundations. |
+| Existing route hierarchy and layouts | Retain with modifications | Preserve working flows; make responsive, accessible, and API-backed slice by slice. |
+| Existing user-facing copy/product flows | Retain with modifications | Use as behavior baseline; correct misleading currency, activity, auth, and unsupported-feature text. |
+| `src/components/ui` shadcn/Base UI/Radix system | Retain with modifications | Web-native primitives are now strategically useful; retain accessible/suitable parts, resolve composition consistency, test keyboard/focus/touch behavior. |
+| Feature components under `src/components` | Retain with modifications | Reuse DOM implementations where safe; decouple direct data assumptions and add responsive/accessibility states. |
+| Existing favicon | Archive temporarily | Keep until an approved PWA icon/favicon/maskable set replaces it. |
+| Stock Next/Vercel SVG assets | Delete after migration | Not Spenza branding; remove only after production asset references are verified. |
+| TanStack Query | Retain with modifications | Keep for browser server state with centralized query keys, auth/account cleanup, and no persisted financial mutation queue. |
+| React Hook Form and resolver approach | Retain with modifications | Keep for accessible web forms and correct Zod input/output typing. |
+| Zod validation approach | Retain with modifications | Make canonical/direct where needed; share transport-safe contracts and validate environment/browser boundaries. |
+| `date-fns` | Retain with modifications | Keep only with explicit UTC/user-time-zone/date semantics. |
+| `clsx`, CVA, and Tailwind class helpers | Retain with modifications | Useful for web component variants; keep responsibilities clear and avoid redundant merging libraries. |
+| Lucide React | Retain with modifications | Web-compatible; retain with accessible labels/hidden decorative treatment and bundle review. |
+| Sonner/toast feedback | Retain with modifications | Web-compatible; mount/test one accessible host and do not rely on toast as the only error/state signal. |
+| Recharts/dashboard chart approach | Retain with modifications | May remain for responsive descriptive charts if performance and accessible data alternatives pass. |
+| Framer Motion | Delete after migration | Currently unused; remove in focused cleanup unless a reviewed reduced-motion use justifies it. |
+| `next-themes` | Retain with modifications | Suitable for web themes; verify hydration, CSP, system/light/dark/OLED semantics, and standalone mode. |
+| Existing profile/group/expense/dashboard concepts | Retain with modifications | Product vocabulary and flows remain, but authorization, financial integrity, and data access must move to the API. |
+| Prisma conceptual entities/enums | Retain with modifications | Users, groups, expenses, splits, settlements, notifications, and activity remain useful domain vocabulary. |
+| Checked-in Prisma schema as production design | Rewrite | Replace Float money/auth coupling/invite/receipt/push/audit/idempotency gaps additively after actual-database discovery. |
+| Existing database records | Retain with modifications | Preserve, profile, backfill, and reconcile; never discard to simplify migration. |
+| Existing group/member role intent | Retain with modifications | Add lifecycle, invitations, audits, owner rules, authorization, and indexes. |
+| EQUAL/EXACT/PERCENTAGE/SHARES product semantics | Retain with modifications | Preserve after deterministic integer implementation and explicit stable-order rules. |
+| `CUSTOM` split enum | Archive temporarily | Hide until semantics are approved; remove later if product rejects it. |
+| Currency list/per-group currency idea | Retain with modifications | Replace free strings/hard-coded symbols with approved ISO policy and currency-scoped invariants. |
+| Dashboard/activity concepts | Retain with modifications | Preserve useful metrics/timeline after contracts, typed events, authorization, and DB aggregation. |
+| Expense calculation Server Action | Rewrite | Float arithmetic, trusted participant IDs, broken CUSTOM branch, and direct Prisma coupling are unsafe. |
+| Group balance React algorithm | Rewrite | Move authoritative computation into pure tested domain/API code; component becomes presentation only. |
+| Settlement Server Action | Rewrite | Add group/party/debt authorization, integer currency, idempotency, versions/reversal, transactions, and tests. |
+| Friend request Server Actions | Rewrite | Fix symmetric uniqueness, declined retry, enumeration, concurrency, and activity semantics behind API policy. |
+| Group Server Actions | Rewrite | Replace header/revalidation/raw Prisma coupling with authorized services and explicit DTOs. |
+| Dashboard Server Action | Rewrite | Replace full in-memory scans/mixed currencies with indexed authorized API queries/read models. |
+| Next.js Server Actions for non-domain UI concerns | Retain with modifications | May remain only where they do not bypass the API/domain authority and their security/cache behavior is explicit. |
+| Better Auth user profile data | Retain with modifications | Link/migrate approved fields to stable internal users after conflict review. |
+| Better Auth runtime/client/route/session proxy | Delete after migration | Clerk web/API replaces it only after account transition and rollback window. |
+| Better Auth Session/Account/Verification records | Archive temporarily | Keep read-only for transition/retention; never copy password/token material to Clerk. |
+| `src/lib/db.ts` and direct web Prisma access | Rewrite | Move Prisma lifecycle/repositories into API-only database package; eliminate web dependency slice by slice. |
+| Prisma 5.22 packages | Retain with modifications | Preserve during behavioral migration; upgrade separately with official guidance and isolated verification. |
+| `package.json` web dependencies/scripts | Retain with modifications | Rename workspace and split API/database/contract responsibilities; avoid unrelated upgrades. |
+| `pnpm-lock.yaml` | Retain with modifications | Remains authoritative; update only through reviewed dependency changes. |
+| `.gitignore` exclusions | Retain with modifications | Preserve secrets/build exclusions; add PWA test/cache/generated artifacts only when implemented. |
+| `apps/api/.gitkeep` | Retain unchanged | Keep placeholder until API Foundation initializes it. |
+| `apps/mobile/.gitkeep` | Delete after migration | Keep temporarily uninitialized; remove in a separate cleanup after PWA direction/references are confirmed. |
+| Expo/NativeWind/EAS assumptions | Archive temporarily | Historical planning only; native may be reconsidered after PWA maturity, not carried into MVP dependencies. |
+| `supabase/config.toml` and Supabase CLI dependency | Delete after migration | Unused and target infrastructure is Google Cloud; confirm actual DB provenance first. |
+| Ignored generated Prisma output | Delete after migration | Regenerate only from the authoritative API/database package after ownership moves. |
+| Current README and planning documentation | Retain with modifications | Replace legacy/native-first language with accurate web/PWA setup, API boundary, release, and runbooks. |
+| Existing baseline/monorepo/audit reports | Retain unchanged | Historical evidence remains accurate for its date; PWA strategy change records the new decision. |
+| Tests | Rewrite | No legacy behavioral suite exists; add characterization, domain, API, web/PWA, accessibility, security, migration, and deployment coverage. |
+| Deployment configuration | Rewrite | None exists; create reviewed Next.js hosting plus Cloud Run/Cloud SQL/GCS/Secret Manager delivery. |
 
 ## Reuse summary
 
-The safe reusable core is the product vocabulary, internal record identity, high-level split/group/dashboard behaviors, strict typing intent, and selected cross-platform libraries. Existing executable business code is specification material, not a production library. The web application should be archived as a temporary reference while the domain rules, HTTP API, auth boundary, financial model, and native views are rewritten and verified.
+The PWA-first strategy materially increases safe client reuse. The repaired Next.js application, App Router structure, web component system, Tailwind styles, forms, query library, routes, and product flows are foundations to harden rather than discard. The unsafe reusable area has not changed: financial arithmetic, authorization, direct Prisma Server Actions, schema design, identity-provider coupling, and untested balance/settlement behavior must be rewritten behind explicit API/domain boundaries.
 
+Keep the working application build throughout migration. Replace one vertical slice at a time, compare behavior/data, retain a rollback path, and delete only after verification and retention gates.
