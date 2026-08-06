@@ -1,0 +1,13 @@
+{
+  "name": "@spenza/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./next": "./next.mjs"
+  },
+  "dependencies": {
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0"
+  }
+}
