@@ -11,6 +11,7 @@ import { healthRouter } from "./routes/health.js";
 import { clerkMiddleware } from "@clerk/express";
 import { profileRouter } from "./routes/profile.js";
 import { groupRouter } from "./routes/groups.js";
+import { expenseRouter } from "./routes/expenses.js";
 
 export function createApp(): express.Application {
   const app = express();
@@ -47,6 +48,7 @@ export function createApp(): express.Application {
   app.use(healthRouter);
   app.use(profileRouter);
   app.use(groupRouter);
+  app.use(expenseRouter);
 
   // 8. 404 Handler
   app.use(notFoundHandler);

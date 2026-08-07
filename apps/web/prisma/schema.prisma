@@ -34,6 +34,9 @@ model User {
   settlementsReceived Settlement[]   @relation("SettlementPayee")
   notifications       Notification[] @relation("UserNotifications")
   activities          Activity[]     @relation("UserActivities")
+  expensePayments     ExpensePayment[]
+  expenseRevisions    ExpenseRevision[] @relation("ExpenseRevisionActor")
+  idempotencyRecords  IdempotencyRecord[]
 
   @@map("user")
 }
@@ -149,6 +152,7 @@ model Expense {
   title       String
   description String?
   amount      Float
+  totalMinor  BigInt?
   currency    String    @default("USD")
   date        DateTime  @default(now())
   receiptUrl  String?
@@ -160,6 +164,8 @@ model Expense {
   groupId     String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  version     Int       @default(1)
+  voidedAt    DateTime?
 
   creator    User              @relation("ExpenseCreator", fields: [creatorId], references: [id])
   group      Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -167,6 +173,8 @@ model Expense {
   splits     ExpenseSplit[]
   activities Activity[]
   recurring  RecurringExpense?
+  payments   ExpensePayment[]
+  revisions  ExpenseRevision[]
 
   @@index([creatorId])
   @@index([groupId])
@@ -187,6 +195,10 @@ model ExpenseSplit {
   userId     String
   amountPaid Float   @default(0)
   amountOwed Float   @default(0)
+  allocationMinor BigInt?
+  allocationOrder Int?
+  percentageBps Int?
+  shareWeight BigInt?
   percentage Float?
   shares     Float?
   expense    Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
@@ -194,6 +206,52 @@ model ExpenseSplit {
 
   @@unique([expenseId, userId])
   @@index([userId])
+  @@unique([expenseId, allocationOrder])
+}
+
+model ExpensePayment {
+  id                String   @id @default(cuid())
+  expenseId         String
+  userId            String
+  contributionMinor BigInt
+  paymentOrder      Int
+  createdAt         DateTime @default(now())
+  expense           Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([expenseId, userId])
+  @@unique([expenseId, paymentOrder])
+  @@index([userId])
+}
+
+model ExpenseRevision {
+  id        String   @id @default(cuid())
+  expenseId String
+  version   Int
+  actorId   String
+  snapshot  Json
+  createdAt DateTime @default(now())
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  actor     User     @relation("ExpenseRevisionActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([expenseId, version])
+  @@index([actorId])
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(cuid())
+  actorId     String
+  method      String
+  route       String
+  key         String
+  fingerprint String
+  statusCode  Int
+  response    Json
+  createdAt   DateTime @default(now())
+  actor       User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@unique([actorId, method, route, key])
+  @@index([createdAt])
 }
 
 model Settlement {

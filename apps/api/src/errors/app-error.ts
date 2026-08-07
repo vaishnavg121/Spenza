@@ -44,6 +44,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class UnprocessableEntityError extends AppError {
+  constructor(message = "The request violates a domain rule", code = "DOMAIN_VALIDATION_FAILED") {
+    super(422, code, message);
+  }
+}
+
 export class PayloadTooLargeError extends AppError {
   constructor(message = "Payload size limit exceeded") {
     super(413, "PAYLOAD_TOO_LARGE", message);
