@@ -15,6 +15,7 @@ model User {
   name                String
   username            String?        @unique
   email               String         @unique
+  clerkSubjectId      String?        @unique
   emailVerified       Boolean        @default(false)
   image               String?
   phone               String?

@@ -13,6 +13,9 @@ importers:
       '@clerk/express':
         specifier: ^2.1.51
         version: 2.1.51(express@4.22.2(supports-color@7.2.0))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@prisma/client':
+        specifier: 5.22.0
+        version: 5.22.0(prisma@5.22.0)
       '@spenza/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
