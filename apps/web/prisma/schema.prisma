@@ -32,6 +32,7 @@ model User {
   expenseSplits       ExpenseSplit[] @relation("UserSplits")
   settlementsPaid     Settlement[]   @relation("SettlementPayer")
   settlementsReceived Settlement[]   @relation("SettlementPayee")
+  settlementActions   Settlement[]   @relation("SettlementActor")
   notifications       Notification[] @relation("UserNotifications")
   activities          Activity[]     @relation("UserActivities")
   expensePayments     ExpensePayment[]
@@ -255,25 +256,39 @@ model IdempotencyRecord {
 }
 
 model Settlement {
-  id         String           @id @default(cuid())
-  payerId    String
-  payeeId    String
-  amount     Float
-  currency   String           @default("USD")
-  method     PaymentMethod    @default(CASH)
-  date       DateTime         @default(now())
-  groupId    String?
-  status     SettlementStatus @default(COMPLETED)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  payer      User             @relation("SettlementPayer", fields: [payerId], references: [id])
-  payee      User             @relation("SettlementPayee", fields: [payeeId], references: [id])
-  group      Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  activities Activity[]
+  id          String           @id @default(cuid())
+  payerId     String
+  payeeId     String
+  amount      Float
+  amountMinor BigInt?
+  currency    String           @default("USD")
+  method      PaymentMethod    @default(CASH)
+  kind        SettlementKind   @default(PAYMENT)
+  date        DateTime         @default(now())
+  groupId     String?
+  status      SettlementStatus @default(COMPLETED)
+  reversesId  String?          @unique
+  createdById String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  payer       User             @relation("SettlementPayer", fields: [payerId], references: [id])
+  payee       User             @relation("SettlementPayee", fields: [payeeId], references: [id])
+  createdBy   User?            @relation("SettlementActor", fields: [createdById], references: [id], onDelete: Restrict)
+  group       Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  reverses    Settlement?      @relation("SettlementReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversal    Settlement?      @relation("SettlementReversal")
+  activities  Activity[]
 
   @@index([payerId])
   @@index([payeeId])
   @@index([groupId])
+  @@index([createdById])
+  @@index([groupId, date, id])
+}
+
+enum SettlementKind {
+  PAYMENT
+  REVERSAL
 }
 
 enum PaymentMethod {
@@ -365,4 +380,5 @@ enum ActivityAction {
   EXPENSE_UPDATED
   EXPENSE_DELETED
   SETTLEMENT_MADE
+  SETTLEMENT_REVERSED
 }

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { BalancesList } from "@/components/groups/group-balances";
 import { GroupExpenseList } from "@/components/expenses/group-expense-list";
+import { SettlementHistory } from "@/components/settlements/settlement-history";
 
 export default async function GroupDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -97,6 +98,12 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
             Balances
           </TabsTrigger>
           <TabsTrigger
+            value="settlements"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            History
+          </TabsTrigger>
+          <TabsTrigger
             value="members"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
           >
@@ -110,9 +117,14 @@ export default async function GroupDetailsPage({ params }: { params: Promise<{ i
            <BalancesList 
               groupId={group.id} 
               members={group.members} 
-              expenses={group.expenses} 
-              settlements={group.settlements} 
-              currentUserId={session.user.id} 
+              currentUserId={session.user.id}
+           />
+        </TabsContent>
+        <TabsContent value="settlements" className="pt-5 sm:pt-6">
+           <SettlementHistory
+              groupId={group.id}
+              members={group.members}
+              currentUserId={session.user.id}
            />
         </TabsContent>
         <TabsContent value="members" className="space-y-4 pt-5 sm:pt-6">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSettlement } from "@/actions/settlements";
+import { createSettlementApi } from "@/lib/api-settlements";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,13 +15,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { HandCoins } from "lucide-react";
+import { formatMinorUnitToAmount } from "@/lib/money";
 
 interface SettleUpDialogProps {
   groupId: string;
   creditorId: string;
   debtorName: string;
   creditorName: string;
-  amount: number;
+  amountMinor: string;
   isCurrentUserDebtor: boolean;
   isCurrentUserCreditor: boolean;
 }
@@ -31,19 +32,34 @@ export function SettleUpDialog({
   creditorId,
   debtorName,
   creditorName,
-  amount,
+  amountMinor,
   isCurrentUserDebtor,
   isCurrentUserCreditor,
 }: SettleUpDialogProps) {
   const [open, setOpen] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: createSettlement,
+    mutationFn: async () => {
+      return createSettlementApi(
+        groupId,
+        {
+          receiverId: creditorId,
+          amountMinor,
+          currency: "USD",
+          method: "CASH",
+        },
+        idempotencyKey
+      );
+    },
     onSuccess: () => {
       toast.success("Settlement recorded successfully");
+      queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-details", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["settlements", groupId] });
       setOpen(false);
+      setIdempotencyKey(crypto.randomUUID());
     },
     onError: (error) => {
       toast.error(error.message || "Failed to record settlement");
@@ -51,24 +67,7 @@ export function SettleUpDialog({
   });
 
   const handleSettle = () => {
-    // Determine payer and payee context. 
-    // Usually the person clicking "Settle Up" is recording a payment THEY made, 
-    // or a payment they received. 
-    // For simplicity, if current user is debtor, they are payer.
-    // If current user is creditor, they are recording that debtor paid them (payer = debtor, payee = creditor).
-    // The action `createSettlement` currently assumes `payerId` is `session.user.id`.
-    // Wait, if creditor is recording it, payer is NOT session.user.id. 
-    // We should ideally let the user confirm who paid who, but for now, we assume the debtor is paying.
-    // Actually, `createSettlement` uses `session.user.id` as `payerId`. 
-    // So ONLY the debtor can natively use this as written, OR we need to update action to accept payerId.
-    
-    // For this prototype, let's just trigger it assuming the current user is making the payment
-    mutation.mutate({
-      groupId,
-      payeeId: creditorId,
-      amount,
-      method: "CASH",
-    });
+    mutation.mutate();
   };
 
   // Only show button if current user is involved in the debt
@@ -88,9 +87,11 @@ export function SettleUpDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="ml-auto" />}>
-        <HandCoins className="mr-2 h-4 w-4" />
-        Settle
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="ml-auto">
+          <HandCoins className="mr-2 h-4 w-4" />
+          Settle
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
@@ -106,7 +107,7 @@ export function SettleUpDialog({
              <span className="font-semibold">{creditorName}</span>
           </div>
           <div className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-             ${amount.toFixed(2)}
+             ${formatMinorUnitToAmount(amountMinor)}
           </div>
         </div>
         <DialogFooter>

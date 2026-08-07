@@ -1,5 +1,10 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchBalancesApi } from "@/lib/api-balances";
 import { SettleUpDialog } from "@/components/settlements/settle-up-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatMinorUnitToAmount } from "@/lib/money";
 
 type GroupMember = {
   userId: string;
@@ -10,99 +15,29 @@ type GroupMember = {
   };
 };
 
-type ExpenseSplit = {
-  userId: string;
-  amountPaid: number;
-  amountOwed: number;
-};
-
-type Expense = {
-  splits: ExpenseSplit[];
-};
-
-type Settlement = {
-  payerId: string;
-  payeeId: string;
-  amount: number;
-  status: string;
-};
-
 interface BalancesListProps {
   groupId: string;
   members: GroupMember[];
-  expenses: Expense[];
-  settlements: Settlement[];
   currentUserId: string;
 }
 
-export function BalancesList({ groupId, members, expenses, settlements, currentUserId }: BalancesListProps) {
-  // 1. Calculate net balances
-  const balances = new Map<string, number>();
-  
-  // Initialize balances to 0
-  members.forEach((m) => balances.set(m.userId, 0));
-
-  // Add expenses
-  expenses.forEach((expense) => {
-    expense.splits.forEach((split) => {
-      const current = balances.get(split.userId) || 0;
-      balances.set(split.userId, current + (split.amountPaid - split.amountOwed));
-    });
+export function BalancesList({ groupId, members, currentUserId }: BalancesListProps) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["balances", groupId],
+    queryFn: () => fetchBalancesApi(groupId),
   });
 
-  // Add settlements
-  settlements.forEach((settlement) => {
-    if (settlement.status !== "COMPLETED") return;
-    const payerBalance = balances.get(settlement.payerId) || 0;
-    const payeeBalance = balances.get(settlement.payeeId) || 0;
-    
-    // Payer's net goes up, Payee's net goes down
-    balances.set(settlement.payerId, payerBalance + settlement.amount);
-    balances.set(settlement.payeeId, payeeBalance - settlement.amount);
-  });
+  if (isLoading) {
+    return <div className="py-8 text-center text-muted-foreground">Loading balances...</div>;
+  }
 
-  // 2. Simplify debts using greedy algorithm
-  const debtors: { userId: string; amount: number }[] = [];
-  const creditors: { userId: string; amount: number }[] = [];
-
-  balances.forEach((balance, userId) => {
-    // Handling minor floating point inaccuracies
-    if (balance < -0.01) debtors.push({ userId, amount: -balance });
-    else if (balance > 0.01) creditors.push({ userId, amount: balance });
-  });
-
-  // Sort descending
-  debtors.sort((a, b) => b.amount - a.amount);
-  creditors.sort((a, b) => b.amount - a.amount);
-
-  type Debt = { debtorId: string; creditorId: string; amount: number };
-  const simplifiedDebts: Debt[] = [];
-
-  let i = 0;
-  let j = 0;
-
-  while (i < debtors.length && j < creditors.length) {
-    const debtor = debtors[i];
-    const creditor = creditors[j];
-    
-    const amount = Math.min(debtor.amount, creditor.amount);
-
-    simplifiedDebts.push({
-      debtorId: debtor.userId,
-      creditorId: creditor.userId,
-      amount: Math.round(amount * 100) / 100,
-    });
-
-    debtor.amount -= amount;
-    creditor.amount -= amount;
-
-    if (debtor.amount < 0.01) i++;
-    if (creditor.amount < 0.01) j++;
+  if (error || !data) {
+    return <div className="py-8 text-center text-destructive">Failed to load balances.</div>;
   }
 
   const getMember = (id: string) => members.find(m => m.userId === id)?.user;
 
-  if (simplifiedDebts.length === 0) {
+  if (data.suggestions.length === 0) {
     return (
       <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border bg-card p-8 text-center shadow-sm">
         <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">All Settled Up!</h3>
@@ -119,9 +54,9 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
         <h3 className="text-lg font-semibold">Suggested Settlements</h3>
         <p className="mt-1 text-sm text-muted-foreground">A clear path to settling the current group balances.</p>
       </div>
-      {simplifiedDebts.map((debt, index) => {
-        const debtor = getMember(debt.debtorId);
-        const creditor = getMember(debt.creditorId);
+      {data.suggestions.map((debt, index) => {
+        const debtor = getMember(debt.senderId);
+        const creditor = getMember(debt.receiverId);
 
         if (!debtor || !creditor) return null;
 
@@ -151,7 +86,7 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
                         {isCurrentUserCreditor ? "You" : creditor.name}
                      </span>
                   </p>
-                  <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">${debt.amount.toFixed(2)}</p>
+                  <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">${formatMinorUnitToAmount(debt.amountMinor)}</p>
                </div>
             </div>
             
@@ -160,7 +95,7 @@ export function BalancesList({ groupId, members, expenses, settlements, currentU
                creditorId={creditor.id}
                debtorName={isCurrentUserDebtor ? "You" : debtor.name}
                creditorName={isCurrentUserCreditor ? "You" : creditor.name}
-               amount={debt.amount}
+               amountMinor={debt.amountMinor}
                isCurrentUserDebtor={isCurrentUserDebtor}
                isCurrentUserCreditor={isCurrentUserCreditor}
             />

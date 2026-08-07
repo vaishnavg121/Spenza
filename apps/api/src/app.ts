@@ -12,6 +12,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { profileRouter } from "./routes/profile.js";
 import { groupRouter } from "./routes/groups.js";
 import { expenseRouter } from "./routes/expenses.js";
+import { settlementRouter } from "./routes/settlements.js";
 
 export function createApp(): express.Application {
   const app = express();
@@ -49,6 +50,7 @@ export function createApp(): express.Application {
   app.use(profileRouter);
   app.use(groupRouter);
   app.use(expenseRouter);
+  app.use(settlementRouter);
 
   // 8. 404 Handler
   app.use(notFoundHandler);
