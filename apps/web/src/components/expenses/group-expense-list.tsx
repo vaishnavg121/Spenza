@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ReceiptText } from "lucide-react";
 import { format } from "date-fns";
 import { formatMinorUnitToAmount } from "@/lib/money";
+import { ReceiptManager } from "@/components/receipts/receipt-manager";
 
 interface GroupExpenseListProps {
   groupId: string;
@@ -83,11 +84,12 @@ export function GroupExpenseList({ groupId, currentUserId }: GroupExpenseListPro
                    <span className="text-xs text-muted-foreground font-medium uppercase">{format(new Date(expense.date), 'MMM')}</span>
                    <span className="text-lg font-bold">{format(new Date(expense.date), 'dd')}</span>
                 </div>
-                <div className="min-w-0">
+                 <div className="min-w-0">
                    <p className="truncate font-medium">{expense.title}</p>
                    <p className="truncate text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">${formatMinorUnitToAmount(expense.totalMinor)}</span>
                    </p>
+                   <ReceiptManager groupId={groupId} expenseId={expense.id} />
                 </div>
              </div>
              <div className="flex items-center justify-between gap-3 border-t pt-3 text-left sm:block sm:border-0 sm:pt-0 sm:text-right">

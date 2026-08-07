@@ -119,3 +119,59 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 });
+
+// 6. WEB PUSH EVENT LISTENER
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  try {
+    const payload = event.data.json();
+
+    // Strip sensitive details, provide safe fallback
+    const title = payload.title || "Spenza";
+    const body = payload.body || "You have a new update.";
+    // Only accept local same-origin paths, sanitize absolute URLs
+    let url = "/dashboard";
+    if (payload.url && payload.url.startsWith("/")) {
+      url = payload.url;
+    }
+
+    event.waitUntil(
+      self.registration.showNotification(title, {
+        body,
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/icon.svg",
+        data: { url },
+        tag: "spenza-notification", // Deduplicates rapid identical notifications
+      })
+    );
+  } catch (err) {
+    console.error("Failed to parse push payload:", err);
+  }
+});
+
+// 7. NOTIFICATION CLICK LISTENER
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const urlToOpen = new URL(event.notification.data?.url || "/dashboard", self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      // If a window is already open, focus and navigate it
+      for (let client of windowClients) {
+        if (client.url === urlToOpen && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (windowClients.length > 0 && "focus" in windowClients[0]) {
+        windowClients[0].focus();
+        return windowClients[0].navigate(urlToOpen);
+      }
+      // Otherwise, open a new window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});

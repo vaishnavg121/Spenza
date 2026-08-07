@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Activity, BarChart3, LayoutDashboard, Search, Users, WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
+import { NotificationCenter } from "@/components/notifications/notification-center";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -84,6 +85,7 @@ export function AppShell({ children, userName }: AppShellProps) {
               <p className="text-sm text-muted-foreground">Your shared-expense workspace</p>
             </div>
             <div className="flex min-w-0 items-center gap-3">
+              <NotificationCenter />
               <span className="hidden max-w-48 truncate text-sm font-medium sm:inline">{userName}</span>
               <UserButton />
             </div>

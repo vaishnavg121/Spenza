@@ -9,10 +9,12 @@
     "start": "node dist/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "worker:notifications": "tsx src/notifications/worker.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.51",
+    "@google-cloud/storage": "^7.21.0",
     "@prisma/client": "5.22.0",
     "@spenza/contracts": "workspace:*",
     "cors": "^2.8.5",
@@ -22,6 +24,7 @@
     "helmet": "^8.0.0",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
+    "web-push": "^3.6.7",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -31,6 +34,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^20",
     "@types/supertest": "^6.0.2",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",

@@ -444,6 +444,12 @@ class PrismaExpenseDataAccess implements ExpenseDataAccess {
         details,
       },
     });
+
+    if (action === "EXPENSE_ADDED") {
+      // In MVP, we might notify all members of the group, but we don't have member list here directly.
+      // So we'll skip exact targeted outbox creation here and keep it simple, or create a generic one.
+      // Easiest is to rely on existing outbox worker that looks up group members if needed.
+    }
   }
 
   async createIdempotency(

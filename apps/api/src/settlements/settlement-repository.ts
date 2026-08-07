@@ -267,7 +267,7 @@ class PrismaSettlementDataAccess implements SettlementDataAccess {
     date: Date;
     createdById: string;
   }): Promise<SettlementRecord> {
-    return mapSettlement(await this.prisma.settlement.create({
+    const created = await this.prisma.settlement.create({
       data: {
         groupId: input.groupId,
         payerId: input.payerId,
@@ -281,7 +281,21 @@ class PrismaSettlementDataAccess implements SettlementDataAccess {
         date: input.date,
         createdById: input.createdById,
       },
-    }));
+    });
+
+    await this.prisma.outboxEvent.create({
+      data: {
+        type: "SETTLEMENT_MADE",
+        payload: {
+          userId: input.receiverId,
+          title: "New Payment",
+          body: `You received a payment.`,
+          type: "SETTLEMENT_COMPLETED",
+        },
+      },
+    });
+
+    return mapSettlement(created);
   }
 
   async createReversal(original: SettlementRecord, actorUserId: string, date: Date): Promise<SettlementRecord> {
