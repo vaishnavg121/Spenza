@@ -15,8 +15,16 @@ export function errorHandler(
 
   res.setHeader("Cache-Control", "private, no-store");
 
-  if (err instanceof ZodError) {
-    const details: ApiErrorDetail[] = err.issues.map((issue) => ({
+  const isZodError =
+    err instanceof ZodError ||
+    (typeof err === "object" &&
+      err !== null &&
+      "name" in err &&
+      err.name === "ZodError");
+
+  if (isZodError) {
+    const zodErr = err as ZodError;
+    const details: ApiErrorDetail[] = (zodErr.issues || []).map((issue) => ({
       path: issue.path as (string | number)[],
       code: issue.code,
       message: issue.message,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getGroups } from "@/actions/groups";
+import { fetchGroups } from "@/lib/api-groups";
+import type { GroupMemberResponse } from "@spenza/contracts";
 import { CreateGroupDialog } from "@/components/groups/create-group-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,7 +15,7 @@ import Link from "next/link";
 export default function GroupsPage() {
   const { data: groups, isLoading, isError, refetch } = useQuery({
     queryKey: ["groups"],
-    queryFn: () => getGroups(),
+    queryFn: () => fetchGroups(),
   });
 
   return (
@@ -78,7 +79,7 @@ export default function GroupsPage() {
                 <CardContent>
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <div className="flex -space-x-2">
-                      {group.members.slice(0, 3).map((m) => (
+                      {group.members.slice(0, 3).map((m: GroupMemberResponse) => (
                         <Avatar key={m.id} className="h-6 w-6 border-2 border-background">
                           <AvatarImage src={m.user.image || undefined} />
                           <AvatarFallback className="text-[10px]">
@@ -93,7 +94,7 @@ export default function GroupsPage() {
                       )}
                     </div>
                     <span className="text-muted-foreground text-xs font-medium">
-                      {group._count.expenses} expenses
+                      {group._count?.expenses || 0} expenses
                     </span>
                   </div>
                 </CardContent>

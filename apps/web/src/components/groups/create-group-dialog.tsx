@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createGroup } from "@/actions/groups";
+import { createGroupApi } from "@/lib/api-groups";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,7 +57,7 @@ export function CreateGroupDialog() {
   });
 
   const mutation = useMutation({
-    mutationFn: createGroup,
+    mutationFn: createGroupApi,
     onSuccess: () => {
       toast.success("Group created successfully");
       queryClient.invalidateQueries({ queryKey: ["groups"] });
