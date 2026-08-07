@@ -5,7 +5,6 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createExpense } from "@/actions/expenses";
 import { createExpenseSchema } from "@/lib/expense-schema";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Receipt } from "lucide-react";
+import { createExpenseApi } from "@/lib/api-expenses";
+import { parseAmountToMinorUnit } from "@/lib/money";
+import type { CreateExpenseInput, ExpenseSplitInput } from "@spenza/contracts";
 
 type Member = {
   id: string;
@@ -53,6 +55,7 @@ interface AddExpenseDialogProps {
 
 export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpenseDialogProps) {
   const [open, setOpen] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const queryClient = useQueryClient();
 
   const form = useForm<
@@ -108,10 +111,57 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
   }, [members, setValue, splitType]);
 
   const mutation = useMutation({
-    mutationFn: createExpense,
+    mutationFn: async (values: z.output<typeof createExpenseSchema>) => {
+      const totalMinor = parseAmountToMinorUnit(values.amount.toString(), 2);
+      if (!totalMinor || totalMinor === "0") {
+        throw new Error("Invalid expense amount.");
+      }
+
+      let split: ExpenseSplitInput;
+      if (values.splitType === "EQUAL") {
+        const participants = values.splits.filter(s => s.isSelected).map(s => ({ userId: s.userId }));
+        if (participants.length === 0) throw new Error("Select at least one participant.");
+        split = { type: "EQUAL", participants };
+      } else if (values.splitType === "EXACT") {
+        const participants = values.splits
+          .filter(s => s.value > 0)
+          .map(s => {
+            const amountMinor = parseAmountToMinorUnit(s.value.toString(), 2);
+            if (!amountMinor) throw new Error(`Invalid exact amount for user.`);
+            return { userId: s.userId, amountMinor };
+          });
+        if (participants.length === 0) throw new Error("Assign at least one exact amount.");
+        split = { type: "EXACT", participants };
+      } else if (values.splitType === "PERCENTAGE") {
+        const participants = values.splits
+          .filter(s => s.value > 0)
+          .map(s => ({ userId: s.userId, percentageBps: Math.round(s.value * 100) }));
+        if (participants.length === 0) throw new Error("Assign at least one percentage.");
+        split = { type: "PERCENTAGE", participants };
+      } else if (values.splitType === "SHARES") {
+        const participants = values.splits
+          .filter(s => s.value > 0)
+          .map(s => ({ userId: s.userId, shares: Math.round(s.value) }));
+        if (participants.length === 0) throw new Error("Assign at least one share.");
+        split = { type: "SHARES", participants };
+      } else {
+        throw new Error("Unsupported split type.");
+      }
+
+      const payload: CreateExpenseInput = {
+        title: values.title,
+        totalMinor,
+        currency: "USD",
+        payers: [{ userId: values.payerId, amountMinor: totalMinor }],
+        split,
+      };
+
+      return createExpenseApi(values.groupId, payload, idempotencyKey);
+    },
     onSuccess: () => {
       toast.success("Expense added successfully");
       queryClient.invalidateQueries({ queryKey: ["group-details", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
       setOpen(false);
       form.reset({
           groupId,
@@ -121,6 +171,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
           splitType: "EQUAL",
           splits: members.map((m) => ({ userId: m.id, value: 0, isSelected: true }))
       });
+      setIdempotencyKey(crypto.randomUUID());
     },
     onError: (error) => {
       toast.error(error.message || "Failed to add expense");
@@ -128,7 +179,6 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
   });
 
   function onSubmit(values: z.output<typeof createExpenseSchema>) {
-    // Client-side quick validation before submission
     if (values.splitType === "EXACT") {
        const total = values.splits.reduce((sum, s) => sum + s.value, 0);
        if (Math.abs(total - values.amount) > 0.01) {
@@ -142,7 +192,7 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
             toast.error(`Percentages must add up to exactly 100%. Currently: ${total}%`);
             return;
         }
-     }
+    }
     mutation.mutate(values);
   }
 
@@ -150,9 +200,11 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="w-full sm:w-auto" />}>
-        <Receipt className="mr-2 h-4 w-4" />
-        Add Expense
+      <DialogTrigger asChild>
+        <Button className="w-full sm:w-auto">
+          <Receipt className="mr-2 h-4 w-4" />
+          Add Expense
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-w-[560px]">
         <DialogHeader>

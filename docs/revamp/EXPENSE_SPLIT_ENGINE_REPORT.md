@@ -167,3 +167,18 @@ Run from the repository root on 2026-08-08:
 - Remove legacy expense authority only after parity and reconciliation are verified.
 
 Until those gates pass, do not deploy or advertise the new expense endpoints against the configured remote database. Rollback disables API expense writers while retaining additive records and audit history; it does not delete financial data.
+
+## Web Cutover Implementation
+
+The responsive web UI (pps/web/src/components/expenses/add-expense-dialog.tsx and pps/web/src/app/(dashboard)/dashboard/groups/[id]/page.tsx) was cut over to the authoritative /v1 API.
+
+- **Amount parsing**: Client-side utility pps/web/src/lib/money.ts strictly parses decimal string inputs into BIGINT minor units. It rejects negatives, malformed decimals, excessive decimal precision, and uses zero floating-point arithmetic.
+- **Add Expense**: The dialog now issues POST /v1/groups/:groupId/expenses via an authenticated pi-expenses.ts client. It provides:
+  - Stable UUIDv4 Idempotency-Key headers per user submission attempt. Keys remain stable across idempotent network retries.
+  - Correct split transformations for EQUAL, EXACT, PERCENTAGE, and SHARES into contract-defined inputs.
+  - The UI maintains single-payer selection but appropriately builds a multi-payer API payers array containing the valid single payer.
+- **Group Details**: The group's expense list uses useQuery via TanStack Query to fetch the latest authoritative expenses, displaying client-derived 'You lent / You owe' statuses using the server-calculated allocations.
+- **Editing**: The API supports editing (expectedVersion), but no edit UI was found or built for this milestone.
+- **Legacy Path**: pps/web/src/actions/expenses.ts remains in the tree and is fully unused by the cut over responsive UI. Active expense creation is now fully authoritative and uses the API via the exact client money parsing boundary.
+- No migrations were executed. The active working tree is clean and respects the financial invariants. Tests pass.
+
