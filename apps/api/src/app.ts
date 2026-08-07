@@ -8,12 +8,15 @@ import { apiRateLimiter } from "./middleware/rate-limit.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { healthRouter } from "./routes/health.js";
+import { clerkMiddleware } from "@clerk/express";
+import { profileRouter } from "./routes/profile.js";
 
 export function createApp(): express.Application {
   const app = express();
 
   // 1. Request ID propagation
   app.use(requestIdMiddleware);
+  app.use(clerkMiddleware());
 
   // 2. Pino HTTP logger
   app.use(
@@ -41,6 +44,7 @@ export function createApp(): express.Application {
 
   // 7. Routes
   app.use(healthRouter);
+  app.use(profileRouter);
 
   // 8. 404 Handler
   app.use(notFoundHandler);

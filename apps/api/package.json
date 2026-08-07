@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.51",
     "@spenza/contracts": "workspace:*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@clerk/nextjs/server";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default async function DashboardLayout({
@@ -8,15 +6,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    redirect("/login");
-  }
+  const user = await currentUser();
 
   return (
-    <AppShell userName={session.user.name}>{children}</AppShell>
+    <AppShell userName={user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Spenza user"}>{children}</AppShell>
   );
 }

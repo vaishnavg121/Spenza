@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Providers } from "@/components/providers";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const viewport: Viewport = {
   themeColor: [
@@ -45,6 +46,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="h-full min-h-full flex flex-col antialiased">
+        <ClerkProvider>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -55,6 +57,7 @@ export default function RootLayout({
             {children}
           </Providers>
         </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

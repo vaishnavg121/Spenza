@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, LayoutDashboard, Users, WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UserButton } from "@clerk/nextjs";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -25,7 +26,6 @@ function isCurrentRoute(pathname: string, href: string) {
 
 export function AppShell({ children, userName }: AppShellProps) {
   const pathname = usePathname();
-  const userInitial = userName.trim().slice(0, 1).toUpperCase() || "S";
 
   return (
     <div className="min-h-dvh bg-muted/30">
@@ -83,12 +83,7 @@ export function AppShell({ children, userName }: AppShellProps) {
             </div>
             <div className="flex min-w-0 items-center gap-3">
               <span className="hidden max-w-48 truncate text-sm font-medium sm:inline">{userName}</span>
-              <span
-                aria-label={`${userName} account`}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground"
-              >
-                {userInitial}
-              </span>
+              <UserButton />
             </div>
           </div>
         </header>
