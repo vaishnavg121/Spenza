@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, LayoutDashboard, Users, WalletCards } from "lucide-react";
+import { Activity, BarChart3, LayoutDashboard, Search, Users, WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
 
@@ -14,8 +14,10 @@ type AppShellProps = {
 const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/groups", label: "Groups", icon: WalletCards },
-  { href: "/dashboard/friends", label: "Friends", icon: Users },
+  { href: "/dashboard/search", label: "Search", icon: Search },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/activity", label: "Activity", icon: Activity },
+  { href: "/dashboard/friends", label: "Friends", icon: Users },
 ];
 
 function isCurrentRoute(pathname: string, href: string) {
@@ -97,7 +99,7 @@ export function AppShell({ children, userName }: AppShellProps) {
         aria-label="Mobile primary"
         className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden"
       >
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-lg grid-cols-6 gap-1">
           {navigation.map(({ href, label, icon: Icon }) => {
             const current = isCurrentRoute(pathname, href);
 

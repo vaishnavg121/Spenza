@@ -15,6 +15,8 @@ import { expenseRouter } from "./routes/expenses.js";
 import { settlementRouter } from "./routes/settlements.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { activityRouter } from "./routes/activity.js";
+import { searchRouter } from "./routes/search.js";
+import { analyticsRouter } from "./routes/analytics.js";
 
 export function createApp(): express.Application {
   const app = express();
@@ -55,6 +57,8 @@ export function createApp(): express.Application {
   app.use(settlementRouter);
   app.use(dashboardRouter);
   app.use(activityRouter);
+  app.use(searchRouter);
+  app.use(analyticsRouter);
 
   // 8. 404 Handler
   app.use(notFoundHandler);
