@@ -9,7 +9,10 @@
   "scripts": {
     "postinstall": "pnpm --filter @spenza/web prisma:generate",
     "dev:web": "pnpm --filter @spenza/web dev",
+    "dev:api": "pnpm --filter @spenza/api dev",
     "build:web": "pnpm --filter @spenza/web build",
+    "build:api": "pnpm --filter @spenza/api build",
+    "test:api": "pnpm --filter @spenza/api test",
     "lint": "pnpm --recursive --if-present run lint",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --recursive --if-present run test",
