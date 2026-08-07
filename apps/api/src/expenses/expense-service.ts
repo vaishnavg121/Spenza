@@ -122,7 +122,7 @@ function reconstructSplit(expense: ExpenseRecord): ExpenseSplitInput {
   }
 }
 
-function serializeExpense(expense: ExpenseRecord): ExpenseResponse {
+export function serializeExpense(expense: ExpenseRecord): ExpenseResponse {
   return ExpenseResponseSchema.parse({
     id: expense.id,
     groupId: expense.groupId,

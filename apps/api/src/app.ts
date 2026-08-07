@@ -13,6 +13,8 @@ import { profileRouter } from "./routes/profile.js";
 import { groupRouter } from "./routes/groups.js";
 import { expenseRouter } from "./routes/expenses.js";
 import { settlementRouter } from "./routes/settlements.js";
+import { dashboardRouter } from "./routes/dashboard.js";
+import { activityRouter } from "./routes/activity.js";
 
 export function createApp(): express.Application {
   const app = express();
@@ -51,6 +53,8 @@ export function createApp(): express.Application {
   app.use(groupRouter);
   app.use(expenseRouter);
   app.use(settlementRouter);
+  app.use(dashboardRouter);
+  app.use(activityRouter);
 
   // 8. 404 Handler
   app.use(notFoundHandler);

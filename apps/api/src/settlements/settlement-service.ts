@@ -44,7 +44,7 @@ function fingerprint(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
 }
 
-function serializeSettlement(record: SettlementRecord): SettlementResponse {
+export function serializeSettlement(record: SettlementRecord): SettlementResponse {
   return SettlementResponseSchema.parse({
     id: record.id,
     groupId: record.groupId,

@@ -4,3 +4,5 @@ export * from "./profile.js";
 export * from "./group.js";
 export * from "./expense.js";
 export * from "./settlement.js";
+export * from "./activity.js";
+export * from "./dashboard.js";
