@@ -9,6 +9,7 @@ RUN corepack enable pnpm
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
+COPY apps/web/prisma ./apps/web/prisma
 COPY packages/contracts/package.json ./packages/contracts/
 
 # Fetch dependencies
@@ -31,6 +32,7 @@ COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.ya
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder /app/packages/contracts/dist ./packages/contracts/dist
+COPY --from=builder /app/apps/web/package.json ./apps/web/
 COPY --from=builder /app/apps/web/prisma ./apps/web/prisma
 
 # Only install production dependencies
