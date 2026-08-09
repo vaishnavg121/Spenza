@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY . .
 RUN pnpm --filter @spenza/api... build
 
 # Production image
-FROM node:24-alpine AS runner
+FROM node:22-slim AS runner
 
 WORKDIR /app
 
