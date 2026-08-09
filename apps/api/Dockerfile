@@ -1,4 +1,4 @@
-FROM node:22-slim AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY . .
 RUN pnpm --filter @spenza/api... build
 
 # Production image
-FROM node:22-slim AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -42,7 +42,7 @@ RUN pnpm dlx prisma@5.22.0 generate --schema=apps/web/prisma/schema.prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # Set user for security
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 EXPOSE 4000
