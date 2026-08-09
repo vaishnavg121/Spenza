@@ -25,6 +25,7 @@ export type ExpenseRecord = {
   title: string;
   description: string | null;
   categoryId: string | null;
+  categoryName?: string | null;
   totalMinor: bigint;
   currency: string;
   splitType: SupportedSplitType;
@@ -32,6 +33,7 @@ export type ExpenseRecord = {
   date: Date;
   createdAt: Date;
   updatedAt: Date;
+  voidedAt?: Date | null;
   payments: ExpensePaymentRecord[];
   allocations: ExpenseAllocationRecord[];
 };
@@ -70,7 +72,7 @@ export type IdempotencyScope = {
 export interface ExpenseDataAccess {
   findGroupContext(groupId: string, relevantUserIds: string[]): Promise<GroupExpenseContext | null>;
   categoryExists(categoryId: string): Promise<boolean>;
-  findExpenseById(groupId: string, expenseId: string): Promise<ExpenseRecord | null>;
+  findExpenseById(groupId: string, expenseId: string, includeVoided?: boolean): Promise<ExpenseRecord | null>;
   listGroupExpenses(
     groupId: string,
     options: { cursorId?: string; take: number },
@@ -83,9 +85,15 @@ export interface ExpenseDataAccess {
     expectedVersion: number,
     data: ExpenseWriteData,
   ): Promise<ExpenseRecord | null>;
+  voidExpenseIfVersion(
+    groupId: string,
+    expenseId: string,
+    expectedVersion: number,
+    voidedAt: Date,
+  ): Promise<ExpenseRecord | null>;
   appendRevision(expense: ExpenseResponse, actorUserId: string): Promise<void>;
   appendActivity(
-    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED",
+    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED" | "EXPENSE_DELETED",
     expense: ExpenseResponse,
     actorUserId: string,
     requestId: string,
@@ -121,6 +129,7 @@ export class ExpenseStorageInvariantError extends Error {
 }
 
 const expenseInclude = {
+  category: { select: { name: true } },
   payments: { orderBy: { paymentOrder: "asc" as const } },
   splits: {
     where: { allocationMinor: { not: null }, allocationOrder: { not: null } },
@@ -170,6 +179,7 @@ function mapExpense(record: PrismaExpenseRecord): ExpenseRecord {
     title: record.title,
     description: record.description,
     categoryId: record.categoryId,
+    categoryName: record.category?.name ?? null,
     totalMinor: record.totalMinor,
     currency: record.currency,
     splitType: record.splitType,
@@ -177,6 +187,7 @@ function mapExpense(record: PrismaExpenseRecord): ExpenseRecord {
     date: record.date,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    voidedAt: record.voidedAt,
     payments: record.payments.map((payment) => ({
       userId: payment.userId,
       contributionMinor: payment.contributionMinor,
@@ -204,6 +215,7 @@ function expenseJson(response: ExpenseResponse): Prisma.InputJsonObject {
     title: response.title,
     description: response.description,
     categoryId: response.categoryId,
+    categoryName: response.categoryName ?? null,
     totalMinor: response.totalMinor,
     currency: response.currency,
     splitType: response.splitType,
@@ -211,6 +223,7 @@ function expenseJson(response: ExpenseResponse): Prisma.InputJsonObject {
     date: response.date,
     createdAt: response.createdAt,
     updatedAt: response.updatedAt,
+    voidedAt: response.voidedAt ?? null,
     payers,
     allocations,
   };
@@ -255,13 +268,13 @@ class PrismaExpenseDataAccess implements ExpenseDataAccess {
     return (await this.prisma.category.count({ where: { id: categoryId } })) === 1;
   }
 
-  async findExpenseById(groupId: string, expenseId: string): Promise<ExpenseRecord | null> {
+  async findExpenseById(groupId: string, expenseId: string, includeVoided = false): Promise<ExpenseRecord | null> {
     const expense = await this.prisma.expense.findFirst({
       where: {
         id: expenseId,
         groupId,
         totalMinor: { not: null },
-        voidedAt: null,
+        ...(!includeVoided && { voidedAt: null }),
         payments: { some: {} },
         splits: { some: { allocationMinor: { not: null } } },
       },
@@ -412,6 +425,26 @@ class PrismaExpenseDataAccess implements ExpenseDataAccess {
     return this.findExpenseById(groupId, expenseId);
   }
 
+  async voidExpenseIfVersion(
+    groupId: string,
+    expenseId: string,
+    expectedVersion: number,
+    voidedAt: Date,
+  ): Promise<ExpenseRecord | null> {
+    const updated = await this.prisma.expense.updateMany({
+      where: {
+        id: expenseId,
+        groupId,
+        version: expectedVersion,
+        totalMinor: { not: null },
+        voidedAt: null,
+      },
+      data: { voidedAt, version: { increment: 1 } },
+    });
+    if (updated.count !== 1) return null;
+    return this.findExpenseById(groupId, expenseId, true);
+  }
+
   async appendRevision(expense: ExpenseResponse, actorUserId: string): Promise<void> {
     await this.prisma.expenseRevision.create({
       data: {
@@ -424,13 +457,14 @@ class PrismaExpenseDataAccess implements ExpenseDataAccess {
   }
 
   async appendActivity(
-    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED",
+    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED" | "EXPENSE_DELETED",
     expense: ExpenseResponse,
     actorUserId: string,
     requestId: string,
   ): Promise<void> {
     const details: Prisma.InputJsonObject = {
       requestId,
+      title: expense.title,
       version: expense.version,
       totalMinor: expense.totalMinor,
       currency: expense.currency,

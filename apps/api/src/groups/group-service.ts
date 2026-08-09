@@ -111,19 +111,30 @@ export class GroupService {
       throw new NotFoundError("Member not found in group");
     }
 
-    // If actor is removing themselves (leaving the group)
-    if (actorUserId === targetUserId) {
-      if (actorMember.role === "ADMIN" && group.members.length > 1) {
-        const adminCount = await this.repository.countAdmins(groupId);
-        if (adminCount <= 1) {
-          throw new ConflictError("Cannot leave group as the sole administrator. Appoint another admin first.");
-        }
-      }
-    } else {
-      // If actor is removing someone else, actor MUST be an ADMIN
-      if (actorMember.role !== "ADMIN") {
-        throw new ForbiddenError("Only group administrators can remove other members");
-      }
+    // Removing someone else requires administrator authority.
+    if (actorUserId !== targetUserId && actorMember.role !== "ADMIN") {
+      throw new ForbiddenError("Only group administrators can remove other members");
+    }
+
+    const adminCount = targetMember.role === "ADMIN"
+      ? await this.repository.countAdmins(groupId)
+      : 0;
+    if (targetMember.role === "ADMIN" && adminCount <= 1) {
+      throw new ConflictError(
+        actorUserId === targetUserId
+          ? "The sole administrator cannot leave. Archive the group or appoint another administrator first."
+          : "The sole administrator cannot be removed",
+        "SOLE_ADMIN_REQUIRED",
+      );
+    }
+
+    // Membership history is not yet modeled independently from active membership.
+    // Fail closed whenever removal would hide or orphan a member's financial history.
+    if (await this.repository.hasFinancialHistory(groupId, targetUserId)) {
+      throw new ConflictError(
+        "This member has expense or settlement history and cannot be removed safely",
+        "MEMBER_HAS_FINANCIAL_HISTORY",
+      );
     }
 
     await this.repository.removeMember(groupId, targetUserId);
@@ -136,7 +147,9 @@ export class GroupService {
       description: group.description,
       imageUrl: group.imageUrl,
       currency: group.currency,
-      inviteLink: group.inviteLink,
+      // The database column temporarily stores only the active invite token hash.
+      // Never expose that server-side verifier through the group response.
+      inviteLink: null,
       isArchived: group.isArchived,
       createdAt: group.createdAt.toISOString(),
       updatedAt: group.updatedAt.toISOString(),

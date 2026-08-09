@@ -23,6 +23,7 @@ export const EnvSchema = z
     VAPID_SUBJECT: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_PUBLISHABLE_KEY: z.string().optional(),
+    GROUP_INVITE_SECRET: z.string().min(32).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production") {
@@ -38,6 +39,13 @@ export const EnvSchema = z
           code: z.ZodIssueCode.custom,
           message: "CLERK_SECRET_KEY is required in production",
           path: ["CLERK_SECRET_KEY"],
+        });
+      }
+      if (!data.GROUP_INVITE_SECRET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "GROUP_INVITE_SECRET is required in production",
+          path: ["GROUP_INVITE_SECRET"],
         });
       }
     }

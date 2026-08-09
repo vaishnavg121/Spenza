@@ -4,14 +4,14 @@
   "private": true,
   "packageManager": "pnpm@11.16.0",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.9.0 <21"
   },
   "scripts": {
     "postinstall": "pnpm --filter @spenza/web prisma:generate",
     "dev:web": "pnpm --filter @spenza/web dev",
-    "dev:api": "pnpm --filter @spenza/api dev",
+    "dev:api": "pnpm --filter @spenza/contracts build && pnpm --filter @spenza/api dev",
     "build:web": "pnpm --filter @spenza/web build",
-    "build:api": "pnpm --filter @spenza/api build",
+    "build:api": "pnpm --filter @spenza/api... build",
     "test:api": "pnpm --filter @spenza/api test",
     "lint": "pnpm --recursive --if-present run lint",
     "typecheck": "pnpm --recursive --if-present run typecheck",

@@ -250,4 +250,28 @@ describe("DashboardService", () => {
     ]);
     expect(repository.monthlySpendingCalls).toEqual([["group_inr"], ["group_usd"]]);
   });
+
+  it("reports 39 INR outstanding after an 11 INR payment against a 50 INR debt", async () => {
+    const repository = new InMemoryDashboardRepository();
+    repository.groups = [{ id: "group_inr", name: "Home", currency: "INR" }];
+    repository.ledgers.set("group_inr", {
+      groupId: "group_inr",
+      currency: "INR",
+      knownUserIds: new Set(["A", "B"]),
+      expenses: [{
+        currency: "INR",
+        totalMinor: 10_000n,
+        payments: [{ userId: "A", contributionMinor: 10_000n }],
+        allocations: [{ userId: "A", allocationMinor: 5_000n }, { userId: "B", allocationMinor: 5_000n }],
+      }],
+      settlements: [{ currency: "INR", payerId: "B", receiverId: "A", amountMinor: 1_100n, kind: "PAYMENT" }],
+    });
+    const result = await new DashboardService(repository).getDashboardData("A");
+    expect(result.currencySummaries[0]).toMatchObject({
+      currency: "INR",
+      totalOwedMinor: "3900",
+      totalOwingMinor: "0",
+      netBalanceMinor: "3900",
+    });
+  });
 });

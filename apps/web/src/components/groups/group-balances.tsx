@@ -78,13 +78,11 @@ export function BalancesList({ groupId, members, currentUserId }: BalancesListPr
                </div>
                <div className="min-w-0">
                   <p className="text-sm font-medium leading-5">
-                     <span className={isCurrentUserDebtor ? "font-bold" : ""}>
-                        {isCurrentUserDebtor ? "You" : debtor.name}
-                     </span>
-                     <span className="text-muted-foreground mx-1">owe</span>
-                     <span className={isCurrentUserCreditor ? "font-bold" : ""}>
-                        {isCurrentUserCreditor ? "You" : creditor.name}
-                     </span>
+                    {isCurrentUserDebtor
+                      ? `You owe ${creditor.name}`
+                      : isCurrentUserCreditor
+                        ? `${debtor.name} owes you`
+                        : `${debtor.name} owes ${creditor.name}`}
                   </p>
                   <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatMinorUnitCurrency(debt.amountMinor, data.currency)}</p>
                </div>
@@ -92,10 +90,10 @@ export function BalancesList({ groupId, members, currentUserId }: BalancesListPr
             
             <SettleUpDialog 
                groupId={groupId}
-               creditorId={creditor.id}
+               currentUserId={currentUserId}
+               suggestion={debt}
                debtorName={isCurrentUserDebtor ? "You" : debtor.name}
                creditorName={isCurrentUserCreditor ? "You" : creditor.name}
-               amountMinor={debt.amountMinor}
                currency={data.currency}
                isCurrentUserDebtor={isCurrentUserDebtor}
                isCurrentUserCreditor={isCurrentUserCreditor}

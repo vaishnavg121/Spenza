@@ -16,7 +16,8 @@ export const ReceiptResponseSchema = z.object({
 }).strict();
 
 export const CreateUploadRequestSchema = z.object({
-  contentType: z.string().regex(/^image\/(jpeg|png|webp|webp)$/),
+  expenseId: z.string().trim().min(1).max(200),
+  contentType: z.string().regex(/^image\/(jpeg|png|webp)$/),
   sizeBytes: z.number().int().positive().max(10 * 1024 * 1024), // 10MB
 }).strict();
 

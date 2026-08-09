@@ -5,7 +5,7 @@ export const CreateGroupSchema = z.object({
   description: z.string().trim().max(500).optional(),
   currency: z.string().length(3, "Currency code must be 3 letters").default("USD"),
   imageUrl: z.string().url("Invalid image URL").optional(),
-});
+}).strict();
 export type CreateGroupInput = z.infer<typeof CreateGroupSchema>;
 
 export const UpdateGroupSchema = z.object({
@@ -14,7 +14,7 @@ export const UpdateGroupSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   currency: z.string().length(3).optional(),
   isArchived: z.boolean().optional(),
-});
+}).strict();
 export type UpdateGroupInput = z.infer<typeof UpdateGroupSchema>;
 
 export const GroupMemberUserSchema = z.object({

@@ -1,90 +1,82 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { createUploadRequestApi, finalizeUploadApi, getReceiptUrlApi } from "@/lib/api-receipts";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createUploadRequestApi,
+  finalizeUploadApi,
+  getReceiptUrlApi,
+  listExpenseReceiptsApi,
+  uploadReceiptBinaryApi,
+} from "@/lib/api-receipts";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Paperclip, Loader2, Image as ImageIcon } from "lucide-react";
+import { ImageIcon, Loader2, Paperclip } from "lucide-react";
 
 interface ReceiptManagerProps {
   groupId: string;
-  expenseId: string; // Used to link or just for UI context
+  expenseId: string;
 }
 
-export function ReceiptManager({ groupId, expenseId }: ReceiptManagerProps) {
-  // Use expenseId safely to avoid unused warnings
-  const contextId = expenseId;
-  const [isUploading, setIsUploading] = useState(false);
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
-  const [receiptId, setReceiptId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const MAX_RECEIPT_BYTES = 10 * 1024 * 1024;
+const ALLOWED_RECEIPT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+export function ReceiptManager({ groupId, expenseId }: ReceiptManagerProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const receiptQueryKey = ["receipts", groupId, expenseId] as const;
+
+  const { data: receipts = [], isLoading } = useQuery({
+    queryKey: receiptQueryKey,
+    queryFn: () => listExpenseReceiptsApi(groupId, expenseId),
+  });
+  const receiptUrls = useQuery({
+    queryKey: ["receipt-urls", groupId, expenseId, ...receipts.map((receipt) => receipt.id)],
+    queryFn: async () => Object.fromEntries(
+      await Promise.all(receipts.map(async (receipt) => [receipt.id, (await getReceiptUrlApi(groupId, receipt.id)).url] as const)),
+    ),
+    enabled: receipts.length > 0,
+  });
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
     if (!file) return;
-    
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File is too large (max 10MB)");
+
+    if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
+      toast.error("Choose a JPEG, PNG, or WebP image");
+      event.target.value = "";
       return;
     }
-    
-    if (!file.type.startsWith("image/")) {
-      toast.error("Only images are supported");
+    if (file.size > MAX_RECEIPT_BYTES) {
+      toast.error("Receipt images must be 10 MB or smaller");
+      event.target.value = "";
       return;
     }
 
     setIsUploading(true);
     try {
-      // 1. Get signed URL
-      const reqRes = await createUploadRequestApi(groupId, {
+      const uploadRequest = await createUploadRequestApi(groupId, {
+        expenseId,
         contentType: file.type,
         sizeBytes: file.size,
       });
-
-      // 2. Upload directly to GCS mock or real
-      const uploadRes = await fetch(reqRes.uploadUrl, {
-        method: reqRes.method,
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error("Failed to upload to storage");
-      }
-
-      // 3. Finalize
-      const finalRes = await finalizeUploadApi(groupId, reqRes.id);
-      
-      toast.success("Receipt uploaded successfully");
-      setReceiptId(finalRes.id);
-      
-      // We don't link it strictly to the expense in DB yet because the instructions 
-      // just say "private receipt-image uploads", but we can display it here.
-    } catch {
-      toast.error("Failed to upload receipt " + contextId);
+      await uploadReceiptBinaryApi(uploadRequest, file);
+      await finalizeUploadApi(groupId, uploadRequest.id);
+      await queryClient.invalidateQueries({ queryKey: receiptQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["receipt-urls", groupId, expenseId] });
+      await queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
+      toast.success("Receipt attached");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to attach receipt");
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  };
-
-  const handleViewReceipt = async () => {
-    if (!receiptId) return;
-    try {
-      const { url } = await getReceiptUrlApi(groupId, receiptId);
-      // In a real app this might open a modal, but let's just open in new tab or set state
-      setReceiptUrl(url);
-    } catch {
-      toast.error("Failed to view receipt " + contextId);
-    }
-  };
+  }
 
   return (
-    <div className="flex items-center gap-2 mt-2">
+    <div className="mt-2 flex flex-wrap items-center gap-2">
       <input
         type="file"
         ref={fileInputRef}
@@ -92,35 +84,37 @@ export function ReceiptManager({ groupId, expenseId }: ReceiptManagerProps) {
         accept="image/jpeg,image/png,image/webp"
         onChange={handleFileChange}
       />
-      {!receiptId ? (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 text-xs text-muted-foreground"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isUploading}
+      >
+        {isUploading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Paperclip className="mr-2 h-3 w-3" />}
+        {receipts.length > 0 ? "Add another receipt" : "Add Receipt"}
+      </Button>
+
+      {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading receipts" /> : null}
+      {receipts.map((receipt, index) => (
         <Button
-          variant="outline"
+          key={receipt.id}
+          variant="ghost"
           size="sm"
-          className="h-8 text-xs text-muted-foreground"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
+          className="h-8 text-xs text-blue-600 dark:text-blue-400"
+          asChild={Boolean(receiptUrls.data?.[receipt.id])}
+          disabled={!receiptUrls.data?.[receipt.id]}
         >
-          {isUploading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Paperclip className="mr-2 h-3 w-3" />}
-          Add Receipt
-        </Button>
-      ) : (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs text-blue-500"
-            onClick={handleViewReceipt}
-          >
-            <ImageIcon className="mr-2 h-3 w-3" />
-            View Receipt
-          </Button>
-          {receiptUrl && (
-            <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline">
-              Open Image
+          {receiptUrls.data?.[receipt.id] ? (
+            <a href={receiptUrls.data[receipt.id]} target="_blank" rel="noopener noreferrer">
+              <ImageIcon className="mr-2 h-3 w-3" />
+              Receipt {index + 1}
             </a>
+          ) : (
+            <span><Loader2 className="mr-2 inline h-3 w-3 animate-spin" />Receipt {index + 1}</span>
           )}
-        </div>
-      )}
+        </Button>
+      ))}
     </div>
   );
 }

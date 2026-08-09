@@ -2,6 +2,13 @@
 
 Spenza is being developed incrementally as a responsive, PWA-first expense-sharing platform. The repository is a pnpm workspace, and the promoted Next.js application under `apps/web` remains the runnable product throughout the migration.
 
+## Prerequisites
+
+- Node.js 20 LTS (the same major version used by the production containers)
+- pnpm 11.16.0 through Corepack
+
+The repository's `.nvmrc` selects Node.js 20 for version managers that support it. Node.js 24 is not a supported local-development runtime for this project.
+
 ## Workspace layout
 
 ```text

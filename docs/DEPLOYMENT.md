@@ -40,6 +40,7 @@ Secrets must be mounted to Cloud Run via Secret Manager integration. Never embed
 - `RECEIPTS_BUCKET_NAME`: `spenza-receipts-prod`
 - `DATABASE_URL`: Mounted via Secret Manager.
 - `CLERK_SECRET_KEY`: Mounted via Secret Manager.
+- `GROUP_INVITE_SECRET`: Server-only secret containing at least 32 random bytes, mounted via Google Secret Manager. Never expose it through a `NEXT_PUBLIC_*` variable or commit a real value.
 - `VAPID_PRIVATE_KEY`: Mounted via Secret Manager.
 
 ## Containerization

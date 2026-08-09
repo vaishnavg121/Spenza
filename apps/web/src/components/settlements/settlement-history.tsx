@@ -39,6 +39,8 @@ export function SettlementHistory({ groupId, members, currentUserId }: Settlemen
       queryClient.invalidateQueries({ queryKey: ["settlements", groupId] });
       queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-details", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["activity"] });
       setReversingId(null);
     },
     onError: (error) => {

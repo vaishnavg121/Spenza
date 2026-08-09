@@ -6,7 +6,9 @@ const mocks = vi.hoisted(() => ({
   findUser: vi.fn(),
   findFriendship: vi.fn(),
   createFriendship: vi.fn(),
-  createActivity: vi.fn(),
+  findFriendshipById: vi.fn(),
+  updateFriendships: vi.fn(),
+  listFriendships: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
@@ -22,9 +24,11 @@ vi.mock("@/lib/db", () => ({
     },
     friendship: {
       findFirst: mocks.findFriendship,
+      findUnique: mocks.findFriendshipById,
+      findMany: mocks.listFriendships,
       create: mocks.createFriendship,
+      updateMany: mocks.updateFriendships,
     },
-    activity: { create: mocks.createActivity },
   },
 }));
 
@@ -32,7 +36,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: mocks.revalidatePath,
 }));
 
-import { sendFriendRequest } from "./friends";
+import { acceptFriendRequest, declineFriendRequest, getOutgoingRequests, sendFriendRequest } from "./friends";
 
 const currentUser = {
   id: "user_current",
@@ -54,7 +58,7 @@ describe("sendFriendRequest", () => {
     mocks.findUser.mockResolvedValue(targetUser);
     mocks.findFriendship.mockResolvedValue(null);
     mocks.createFriendship.mockResolvedValue({ id: "friendship_1" });
-    mocks.createActivity.mockResolvedValue({ id: "activity_1" });
+    mocks.updateFriendships.mockResolvedValue({ count: 1 });
   });
 
   it("returns a structured user-not-found result", async () => {
@@ -140,7 +144,6 @@ describe("sendFriendRequest", () => {
       },
       select: { id: true },
     });
-    expect(mocks.createActivity).toHaveBeenCalledOnce();
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/dashboard/friends");
   });
 
@@ -149,5 +152,52 @@ describe("sendFriendRequest", () => {
     mocks.createFriendship.mockRejectedValue(persistenceError);
 
     await expect(sendFriendRequest(targetUser.email)).rejects.toBe(persistenceError);
+  });
+});
+
+describe("incoming friend request lifecycle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.clerkAuth.mockResolvedValue({ userId: "clerk_current" });
+    mocks.findCurrentUser.mockResolvedValue({ id: currentUser.id });
+    mocks.updateFriendships.mockResolvedValue({ count: 1 });
+  });
+
+  it("accepts a pending request only as its recipient", async () => {
+    mocks.findFriendshipById.mockResolvedValue({ id: "request_1", user1Id: targetUser.id, user2Id: currentUser.id, status: "PENDING" });
+    await expect(acceptFriendRequest("request_1")).resolves.toEqual({ ok: true });
+    expect(mocks.updateFriendships).toHaveBeenCalledWith({
+      where: { id: "request_1", user2Id: currentUser.id, status: "PENDING" },
+      data: { status: "ACCEPTED" },
+    });
+  });
+
+  it("rejects an incoming request without deleting its audit state", async () => {
+    mocks.findFriendshipById.mockResolvedValue({ id: "request_1", user1Id: targetUser.id, user2Id: currentUser.id, status: "PENDING" });
+    await expect(declineFriendRequest("request_1")).resolves.toEqual({ ok: true });
+    expect(mocks.updateFriendships).toHaveBeenCalledWith({
+      where: { id: "request_1", user2Id: currentUser.id, status: "PENDING" },
+      data: { status: "DECLINED" },
+    });
+  });
+
+  it("does not allow the sender to accept their outgoing request", async () => {
+    mocks.findFriendshipById.mockResolvedValue({ id: "request_1", user1Id: currentUser.id, user2Id: targetUser.id, status: "PENDING" });
+    await expect(acceptFriendRequest("request_1")).resolves.toMatchObject({ ok: false, code: "REQUEST_NOT_FOUND" });
+    expect(mocks.updateFriendships).not.toHaveBeenCalled();
+  });
+
+  it("returns a structured result when a request was handled concurrently", async () => {
+    mocks.findFriendshipById.mockResolvedValue({ id: "request_1", user1Id: targetUser.id, user2Id: currentUser.id, status: "PENDING" });
+    mocks.updateFriendships.mockResolvedValue({ count: 0 });
+    await expect(acceptFriendRequest("request_1")).resolves.toMatchObject({ ok: false, code: "REQUEST_ALREADY_HANDLED" });
+  });
+
+  it("lists outgoing requests using the verified internal actor", async () => {
+    mocks.listFriendships.mockResolvedValue([]);
+    await expect(getOutgoingRequests()).resolves.toEqual([]);
+    expect(mocks.listFriendships).toHaveBeenCalledWith(expect.objectContaining({
+      where: { user1Id: currentUser.id, status: "PENDING" },
+    }));
   });
 });

@@ -4,6 +4,7 @@ import {
   ExpenseListQuerySchema,
   IdempotencyKeySchema,
   UpdateExpenseSchema,
+  VoidExpenseSchema,
 } from "@spenza/contracts";
 import { z, type ZodError } from "zod";
 import { expenseService as defaultExpenseService } from "../expenses/expense-composition.js";
@@ -21,7 +22,7 @@ const ExpensePathSchema = z.object({
 type ActorResolver = (request: Request) => Promise<string>;
 export type ExpenseRouteService = Pick<
   ExpenseService,
-  "createExpense" | "listExpenses" | "getExpense" | "updateExpense"
+  "createExpense" | "listExpenses" | "getExpense" | "updateExpense" | "voidExpense"
 >;
 
 async function defaultActorResolver(request: Request): Promise<string> {
@@ -133,6 +134,32 @@ export function createExpenseRouter(
         if (!body.success) return next(validationError("Invalid expense update payload", body.error));
         const actorUserId = await resolveActor(request);
         const expense = await service.updateExpense(
+          actorUserId,
+          path.data.groupId,
+          path.data.expenseId,
+          body.data,
+          String(request.id ?? "unknown"),
+        );
+        response.setHeader("Cache-Control", "private, no-store");
+        response.status(200).json({ data: expense });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/v1/groups/:groupId/expenses/:expenseId/void",
+    requireAuthenticatedActor,
+    async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const path = ExpensePathSchema.safeParse(request.params);
+        if (!path.success) return next(validationError("Invalid expense path", path.error));
+        if (!path.data.expenseId) return next(new ValidationError("Expense ID is required"));
+        const body = VoidExpenseSchema.safeParse(request.body);
+        if (!body.success) return next(validationError("Invalid expense void payload", body.error));
+        const actorUserId = await resolveActor(request);
+        const expense = await service.voidExpense(
           actorUserId,
           path.data.groupId,
           path.data.expenseId,

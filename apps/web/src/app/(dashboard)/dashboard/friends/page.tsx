@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getFriends, getPendingRequests, acceptFriendRequest, declineFriendRequest } from "@/actions/friends";
+import { getFriends, getOutgoingRequests, getPendingRequests, acceptFriendRequest, declineFriendRequest } from "@/actions/friends";
 import { AddFriendDialog } from "@/components/friends/add-friend-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -25,10 +25,18 @@ export default function FriendsPage() {
     queryKey: ["friend-requests"],
     queryFn: () => getPendingRequests(),
   });
+  const { data: outgoingRequests, isLoading: outgoingLoading } = useQuery({
+    queryKey: ["friend-requests", "outgoing"],
+    queryFn: () => getOutgoingRequests(),
+  });
 
   const acceptMutation = useMutation({
     mutationFn: acceptFriendRequest,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
       toast.success("Friend request accepted!");
       queryClient.invalidateQueries({ queryKey: ["friends"] });
       queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
@@ -37,7 +45,11 @@ export default function FriendsPage() {
 
   const declineMutation = useMutation({
     mutationFn: declineFriendRequest,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
       toast.success("Friend request declined");
       queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
     },
@@ -125,14 +137,19 @@ export default function FriendsPage() {
               description="We couldn&apos;t load friend requests right now."
               action={<Button type="button" onClick={() => refetchRequests()}>Try again</Button>}
             />
-          ) : requests?.length === 0 ? (
+          ) : requests?.length === 0 && outgoingRequests?.length === 0 ? (
             <EmptyState
               icon={UserPlus}
               title="No pending requests"
               description="You&apos;re all caught up."
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-8">
+              <section className="space-y-3" aria-labelledby="incoming-requests-heading">
+                <h2 id="incoming-requests-heading" className="text-lg font-semibold">Incoming</h2>
+                {requests?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No incoming requests.</p>
+                ) : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {requests?.map((req) => (
                 <Card key={req.id} className="shadow-sm">
                   <CardContent className="flex flex-col gap-4 p-5 sm:p-6">
@@ -166,6 +183,30 @@ export default function FriendsPage() {
                   </CardContent>
                 </Card>
               ))}
+                </div>}
+              </section>
+              <section className="space-y-3" aria-labelledby="outgoing-requests-heading">
+                <h2 id="outgoing-requests-heading" className="text-lg font-semibold">Sent</h2>
+                {outgoingLoading ? <Skeleton className="h-24 rounded-2xl" /> : outgoingRequests?.length ? (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {outgoingRequests.map((request) => (
+                      <Card key={request.id} className="shadow-sm">
+                        <CardContent className="flex items-center gap-4 p-5 sm:p-6">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={request.user2.image || ""} />
+                            <AvatarFallback>{request.user2.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold">{request.user2.name}</p>
+                            <p className="truncate text-sm text-muted-foreground">{request.user2.email}</p>
+                            <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">Awaiting response</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-muted-foreground">No outgoing requests.</p>}
+              </section>
             </div>
           )}
         </TabsContent>

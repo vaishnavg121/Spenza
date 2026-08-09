@@ -8,8 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { AddMemberDialog } from "@/components/groups/add-member-dialog";
+import { ShareGroupDialog } from "@/components/groups/share-group-dialog";
 import { BalancesList } from "@/components/groups/group-balances";
 import { GroupExpenseList } from "@/components/expenses/group-expense-list";
+import { GroupSettings } from "@/components/groups/group-settings";
 import { SettlementHistory } from "@/components/settlements/settlement-history";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -129,10 +131,13 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
         </div>
         <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
           {isCurrentUserAdmin ? (
-            <AddMemberDialog
-              groupId={group.id}
-              existingMemberIds={group.members.map((member) => member.userId)}
-            />
+            <>
+              <AddMemberDialog
+                groupId={group.id}
+                existingMemberIds={group.members.map((member) => member.userId)}
+              />
+              <ShareGroupDialog groupId={group.id} groupName={group.name} />
+            </>
           ) : null}
           <AddExpenseDialog
             groupId={group.id}
@@ -169,9 +174,15 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
           >
             Members ({group.members.length})
           </TabsTrigger>
+          <TabsTrigger
+            value="settings"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            Settings
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="expenses" className="pt-5 sm:pt-6">
-          <GroupExpenseList groupId={group.id} currentUserId={currentUserId} currency={group.currency} />
+          <GroupExpenseList groupId={group.id} currentUserId={currentUserId} currency={group.currency} members={group.members} />
         </TabsContent>
         <TabsContent value="balances" className="pt-5 sm:pt-6">
           <BalancesList groupId={group.id} members={membersForComponents} currentUserId={currentUserId} />
@@ -204,6 +215,9 @@ export default function GroupDetailsPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
           ))}
+        </TabsContent>
+        <TabsContent value="settings" className="pt-5 sm:pt-6">
+          <GroupSettings group={group} currentUserId={currentUserId} isAdmin={isCurrentUserAdmin} />
         </TabsContent>
       </Tabs>
     </div>

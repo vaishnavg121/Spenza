@@ -1,5 +1,5 @@
 import { apiFetch, apiFetchPage } from "./api-client";
-import type { CreateExpenseInput, UpdateExpenseInput, ExpenseResponse, ExpensePage } from "@spenza/contracts";
+import type { CreateExpenseInput, UpdateExpenseInput, VoidExpenseInput, ExpenseResponse, ExpensePage } from "@spenza/contracts";
 
 export async function createExpenseApi(groupId: string, data: CreateExpenseInput, idempotencyKey: string): Promise<ExpenseResponse> {
   return apiFetch<ExpenseResponse>(`/v1/groups/${groupId}/expenses`, {
@@ -28,6 +28,13 @@ export async function fetchExpenseByIdApi(groupId: string, expenseId: string): P
 export async function updateExpenseApi(groupId: string, expenseId: string, data: UpdateExpenseInput): Promise<ExpenseResponse> {
   return apiFetch<ExpenseResponse>(`/v1/groups/${groupId}/expenses/${expenseId}`, {
     method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function voidExpenseApi(groupId: string, expenseId: string, data: VoidExpenseInput): Promise<ExpenseResponse> {
+  return apiFetch<ExpenseResponse>(`/v1/groups/${groupId}/expenses/${expenseId}/void`, {
+    method: "POST",
     body: JSON.stringify(data),
   });
 }

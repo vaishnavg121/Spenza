@@ -28,8 +28,9 @@ function createStorageAdapter(): StorageAdapter {
   return new MockStorageAdapter();
 }
 
+export const receiptStorageAdapter = createStorageAdapter();
 export const receiptService = new ReceiptService(
   new PrismaReceiptRepository(prisma),
   new PrismaGroupRepository(prisma),
-  createStorageAdapter()
+  receiptStorageAdapter
 );

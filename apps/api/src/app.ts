@@ -20,6 +20,7 @@ import { searchRouter } from "./routes/search.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { receiptRouter } from "./routes/receipts.js";
 import { notificationRouter } from "./routes/notifications.js";
+import { groupInviteRouter } from "./routes/group-invites.js";
 
 export function createApp(): express.Application {
   const app = express();
@@ -56,6 +57,7 @@ export function createApp(): express.Application {
   app.use(healthRouter);
   app.use(profileRouter);
   app.use(groupRouter);
+  app.use(groupInviteRouter);
   app.use(expenseRouter);
   app.use(settlementRouter);
   app.use(dashboardRouter);

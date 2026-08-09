@@ -14,6 +14,7 @@ export type ReceiptRecord = {
 };
 
 export interface ReceiptRepository {
+  expenseExistsInGroup(expenseId: string, groupId: string): Promise<boolean>;
   createPendingReceipt(data: Omit<ReceiptRecord, "id" | "createdAt" | "updatedAt" | "status">): Promise<ReceiptRecord>;
   getReceiptById(receiptId: string): Promise<ReceiptRecord | null>;
   markReceiptReady(receiptId: string): Promise<ReceiptRecord>;
@@ -23,6 +24,14 @@ export interface ReceiptRepository {
 
 export class PrismaReceiptRepository implements ReceiptRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async expenseExistsInGroup(expenseId: string, groupId: string): Promise<boolean> {
+    const expense = await this.prisma.expense.findFirst({
+      where: { id: expenseId, groupId, voidedAt: null },
+      select: { id: true },
+    });
+    return expense !== null;
+  }
 
   async createPendingReceipt(data: Omit<ReceiptRecord, "id" | "createdAt" | "updatedAt" | "status">): Promise<ReceiptRecord> {
     return this.prisma.receipt.create({

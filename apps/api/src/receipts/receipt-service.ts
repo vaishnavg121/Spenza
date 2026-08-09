@@ -6,12 +6,12 @@ import {
   type ReceiptResponse,
   type UploadRequestResponse,
 } from "@spenza/contracts";
-import { ForbiddenError, NotFoundError, ValidationError, UnprocessableEntityError } from "../errors/app-error.js";
+import { ForbiddenError, NotFoundError, UnprocessableEntityError } from "../errors/app-error.js";
 import { GroupRepository } from "../groups/group-repository.js";
-import { ReceiptRepository } from "./receipt-repository.js";
+import { ReceiptRepository, type ReceiptRecord } from "./receipt-repository.js";
 import { StorageAdapter } from "./storage-adapter.js";
 
-export function serializeReceipt(record: any): ReceiptResponse {
+export function serializeReceipt(record: ReceiptRecord): ReceiptResponse {
   return ReceiptResponseSchema.parse({
     id: record.id,
     groupId: record.groupId,
@@ -43,6 +43,10 @@ export class ReceiptService {
       throw new NotFoundError("Group not found");
     }
 
+    if (!await this.repository.expenseExistsInGroup(input.expenseId, groupId)) {
+      throw new NotFoundError("Expense not found");
+    }
+
     const objectKey = `receipts/${groupId}/${randomUUID()}`;
     const signedUpload = await this.storageAdapter.generateUploadUrl(objectKey, input.contentType, input.sizeBytes);
 
@@ -52,7 +56,7 @@ export class ReceiptService {
       objectKey,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
-      expenseId: null,
+      expenseId: input.expenseId,
     });
 
     return UploadRequestResponseSchema.parse({
@@ -76,6 +80,10 @@ export class ReceiptService {
 
     if (receipt.uploaderId !== actorUserId) {
       throw new ForbiddenError("You can only finalize your own uploads");
+    }
+
+    if (!receipt.objectKey.startsWith(`receipts/${groupId}/`)) {
+      throw new UnprocessableEntityError("Receipt object boundary is invalid", "RECEIPT_OBJECT_BOUNDARY_INVALID");
     }
 
     if (receipt.status === "READY") {
@@ -102,6 +110,22 @@ export class ReceiptService {
       throw new NotFoundError("Receipt not found");
     }
 
+    if (!receipt.objectKey.startsWith(`receipts/${groupId}/`)) {
+      throw new NotFoundError("Receipt not found");
+    }
+
     return this.storageAdapter.generateDownloadUrl(receipt.objectKey);
+  }
+
+  async listExpenseReceipts(actorUserId: string, groupId: string, expenseId: string): Promise<ReceiptResponse[]> {
+    const member = await this.groupRepository.findMember(groupId, actorUserId);
+    if (!member || !await this.repository.expenseExistsInGroup(expenseId, groupId)) {
+      throw new NotFoundError("Expense not found");
+    }
+
+    const receipts = await this.repository.findReceiptsByExpenseId(expenseId);
+    return receipts
+      .filter((receipt) => receipt.groupId === groupId && receipt.objectKey.startsWith(`receipts/${groupId}/`))
+      .map(serializeReceipt);
   }
 }

@@ -51,9 +51,9 @@ class FakeExpenseDataAccess implements ExpenseDataAccess {
     return categoryId === "category_1";
   }
 
-  async findExpenseById(targetGroupId: string, expenseId: string): Promise<ExpenseRecord | null> {
+  async findExpenseById(targetGroupId: string, expenseId: string, includeVoided = false): Promise<ExpenseRecord | null> {
     const expense = this.state.expenses.get(expenseId);
-    return expense?.groupId === targetGroupId ? structuredClone(expense) : null;
+    return expense?.groupId === targetGroupId && (includeVoided || !expense.voidedAt) ? structuredClone(expense) : null;
   }
 
   async listGroupExpenses(
@@ -61,7 +61,7 @@ class FakeExpenseDataAccess implements ExpenseDataAccess {
     options: { cursorId?: string; take: number },
   ): Promise<ExpenseRecord[]> {
     const ordered = [...this.state.expenses.values()]
-      .filter((expense) => expense.groupId === targetGroupId)
+      .filter((expense) => expense.groupId === targetGroupId && !expense.voidedAt)
       .sort((left, right) => right.date.getTime() - left.date.getTime() || right.id.localeCompare(left.id));
     const start = options.cursorId ? ordered.findIndex((expense) => expense.id === options.cursorId) + 1 : 0;
     return structuredClone(ordered.slice(start, start + options.take));
@@ -119,13 +119,31 @@ class FakeExpenseDataAccess implements ExpenseDataAccess {
     return structuredClone(updated);
   }
 
+  async voidExpenseIfVersion(
+    targetGroupId: string,
+    expenseId: string,
+    expectedVersion: number,
+    voidedAt: Date,
+  ): Promise<ExpenseRecord | null> {
+    const current = this.state.expenses.get(expenseId);
+    if (!current || current.groupId !== targetGroupId || current.version !== expectedVersion || current.voidedAt) return null;
+    const updated: ExpenseRecord = {
+      ...current,
+      version: current.version + 1,
+      voidedAt,
+      updatedAt: voidedAt,
+    };
+    this.state.expenses.set(expenseId, updated);
+    return structuredClone(updated);
+  }
+
   async appendRevision(expense: ExpenseResponse, _actorUserId: string): Promise<void> {
     if (this.shouldFailRevision()) throw new Error("Injected revision failure");
     this.state.revisions.push(structuredClone(expense));
   }
 
   async appendActivity(
-    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED",
+    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED" | "EXPENSE_DELETED",
     expense: ExpenseResponse,
     _actorUserId: string,
     _requestId: string,
@@ -189,7 +207,7 @@ class FakeExpenseRepository implements ExpenseRepository {
 
   findGroupContext(id: string, users: string[]) { return this.access().findGroupContext(id, users); }
   categoryExists(categoryId: string) { return this.access().categoryExists(categoryId); }
-  findExpenseById(id: string, expenseId: string) { return this.access().findExpenseById(id, expenseId); }
+  findExpenseById(id: string, expenseId: string, includeVoided?: boolean) { return this.access().findExpenseById(id, expenseId, includeVoided); }
   listGroupExpenses(id: string, options: { cursorId?: string; take: number }) {
     return this.access().listGroupExpenses(id, options);
   }
@@ -200,11 +218,14 @@ class FakeExpenseRepository implements ExpenseRepository {
   replaceExpenseIfVersion(id: string, expenseId: string, version: number, data: ExpenseWriteData) {
     return this.access().replaceExpenseIfVersion(id, expenseId, version, data);
   }
+  voidExpenseIfVersion(id: string, expenseId: string, version: number, voidedAt: Date) {
+    return this.access().voidExpenseIfVersion(id, expenseId, version, voidedAt);
+  }
   appendRevision(expense: ExpenseResponse, actorUserId: string) {
     return this.access().appendRevision(expense, actorUserId);
   }
   appendActivity(
-    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED",
+    action: "EXPENSE_ADDED" | "EXPENSE_UPDATED" | "EXPENSE_DELETED",
     expense: ExpenseResponse,
     actorUserId: string,
     requestId: string,
@@ -397,5 +418,30 @@ describe("ExpenseService", () => {
     const created = await service.createExpense(actorId, groupId, "key-conflict-v1", expenseInput(), "req_1");
     await expect(service.updateExpense(actorId, groupId, created.expense.id, { expectedVersion: 999 }, "req_2"))
       .rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("voids an expense transactionally, retains it for audit, and excludes it from active lists", async () => {
+    const created = await service.createExpense(actorId, groupId, "key-void-12345", expenseInput(), "req_1");
+    const voided = await service.voidExpense(actorId, groupId, created.expense.id, { expectedVersion: 1 }, "req_2");
+
+    expect(voided.version).toBe(2);
+    expect(voided.voidedAt).toEqual(expect.any(String));
+    expect(repository.state.revisions.map((revision) => revision.version)).toEqual([1, 2]);
+    expect(repository.state.activities.map((activity) => activity.action)).toEqual(["EXPENSE_ADDED", "EXPENSE_DELETED"]);
+    await expect(service.getExpense(actorId, groupId, created.expense.id)).resolves.toMatchObject({ voidedAt: expect.any(String) });
+    await expect(service.listExpenses(actorId, groupId)).resolves.toMatchObject({ data: [] });
+  });
+
+  it("prevents double voiding", async () => {
+    const created = await service.createExpense(actorId, groupId, "key-void-twice", expenseInput(), "req_1");
+    await service.voidExpense(actorId, groupId, created.expense.id, { expectedVersion: 1 }, "req_2");
+    await expect(service.voidExpense(actorId, groupId, created.expense.id, { expectedVersion: 2 }, "req_3"))
+      .rejects.toMatchObject({ code: "EXPENSE_ALREADY_VOIDED", statusCode: 409 });
+  });
+
+  it("rejects an unauthorized void without revealing expense existence", async () => {
+    const created = await service.createExpense(actorId, groupId, "key-private-void", expenseInput(), "req_1");
+    await expect(service.voidExpense("outsider", groupId, created.expense.id, { expectedVersion: 1 }, "req_2"))
+      .rejects.toBeInstanceOf(NotFoundError);
   });
 });

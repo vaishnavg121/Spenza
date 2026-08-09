@@ -76,6 +76,31 @@ describe("balance engine", () => {
     expect(values(full)).toEqual({ A: 0n, B: 0n });
   });
 
+  it("keeps a 50 INR debt, an 11 INR payment, and the 39 INR remainder semantically distinct", () => {
+    const bill = expense(10_000n, [["A", 10_000n]], [["A", 5_000n], ["B", 5_000n]]);
+    const afterPartialPayment = deriveBalances("INR", ["A", "B"], [bill], [{
+      currency: "INR", payerId: "B", receiverId: "A", amountMinor: 1_100n, kind: "PAYMENT",
+    }]);
+    expect(values(afterPartialPayment)).toEqual({ A: 3_900n, B: -3_900n });
+
+    const afterFullPayment = deriveBalances("INR", ["A", "B"], [bill], [{
+      currency: "INR", payerId: "B", receiverId: "A", amountMinor: 5_000n, kind: "PAYMENT",
+    }]);
+    expect(values(afterFullPayment)).toEqual({ A: 0n, B: 0n });
+
+    const afterReversal = deriveBalances("INR", ["A", "B"], [bill], [
+      { currency: "INR", payerId: "B", receiverId: "A", amountMinor: 1_100n, kind: "PAYMENT" },
+      { currency: "INR", payerId: "B", receiverId: "A", amountMinor: 1_100n, kind: "REVERSAL" },
+    ]);
+    expect(values(afterReversal)).toEqual({ A: 5_000n, B: -5_000n });
+  });
+
+  it("restores balances to zero when a voided expense is excluded from the active ledger", () => {
+    const activeExpense = expense(10_000n, [["A", 10_000n]], [["A", 5_000n], ["B", 5_000n]]);
+    expect(values(deriveBalances("INR", ["A", "B"], [activeExpense], []))).toEqual({ A: 5_000n, B: -5_000n });
+    expect(values(deriveBalances("INR", ["A", "B"], [], []))).toEqual({ A: 0n, B: 0n });
+  });
+
   it("applies a reversal as the exact inverse", () => {
     const balances = deriveBalances("INR", ["A", "B"], [expense(50n, [["B", 50n]], [["A", 50n]])], [
       { currency: "INR", payerId: "A", receiverId: "B", amountMinor: 20n, kind: "PAYMENT" },

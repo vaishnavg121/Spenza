@@ -62,6 +62,7 @@ export default function DashboardPage() {
     switch (action) {
       case "EXPENSE_ADDED":
       case "EXPENSE_UPDATED":
+      case "EXPENSE_DELETED":
         return <Receipt className="h-4 w-4 text-orange-500" />;
       case "SETTLEMENT_MADE":
       case "SETTLEMENT_REVERSED":
@@ -88,6 +89,10 @@ export default function DashboardPage() {
       case "EXPENSE_UPDATED": {
         const title = typeof details.title === "string" ? details.title : "Expense";
         return `updated the expense "${title}"`;
+      }
+      case "EXPENSE_DELETED": {
+        const title = typeof details.title === "string" ? details.title : "Expense";
+        return `voided the expense "${title}"`;
       }
       case "SETTLEMENT_MADE": {
         const amountMinor = typeof details.amountMinor === "string" ? details.amountMinor : undefined;
@@ -134,7 +139,7 @@ export default function DashboardPage() {
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <Card className="shadow-sm">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total balance</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Net outstanding balance</CardTitle><CardDescription>What remains after expenses and recorded payments.</CardDescription></CardHeader>
                   <CardContent>
                     <div className={`text-2xl font-bold tabular-nums sm:text-3xl ${netBalance > ZERO_BIGINT ? "text-emerald-600 dark:text-emerald-400" : netBalance < ZERO_BIGINT ? "text-destructive" : ""}`}>
                       {netBalance > ZERO_BIGINT ? "+" : netBalance < ZERO_BIGINT ? "-" : ""}
@@ -143,7 +148,7 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
                 <Card className="shadow-sm">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-500">You are owed</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-500">Others owe you</CardTitle><CardDescription>Outstanding receivables, not total spending.</CardDescription></CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-3xl">
                       {formatMinorUnitCurrency(summary.totalOwedMinor, summary.currency)}
@@ -151,7 +156,7 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
                 <Card className="shadow-sm sm:col-span-2 xl:col-span-1">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-destructive">You owe</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-destructive">You owe others</CardTitle><CardDescription>Outstanding payables after payments.</CardDescription></CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold tabular-nums text-destructive sm:text-3xl">
                       {formatMinorUnitCurrency(summary.totalOwingMinor, summary.currency)}
@@ -163,6 +168,15 @@ export default function DashboardPage() {
           );
         })
       )}
+
+      <Card className="shadow-sm">
+        <CardHeader><CardTitle>Recent payments</CardTitle><CardDescription>Recorded settlements are shown separately from your remaining outstanding balance.</CardDescription></CardHeader>
+        <CardContent>
+          {data.recentSettlements.length === 0 ? <p className="text-sm text-muted-foreground">No payments recorded yet.</p> : <div className="divide-y rounded-xl border">
+            {data.recentSettlements.map((settlement) => <div key={settlement.id} className="flex min-h-14 items-center justify-between gap-4 px-4 py-3"><div><p className="text-sm font-medium">{settlement.kind === "REVERSAL" ? "Reversed payment" : "Payment recorded"}</p><p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(settlement.date), { addSuffix: true })}</p></div><span className="font-semibold tabular-nums">{formatMinorUnitCurrency(settlement.amountMinor, settlement.currency)}</span></div>)}
+          </div>}
+        </CardContent>
+      </Card>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         {data.currencySummaries.map((summary) => {

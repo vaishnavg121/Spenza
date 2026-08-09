@@ -20,6 +20,17 @@ export type SendFriendRequestResult =
   | { ok: true; friendshipId: string }
   | { ok: false; code: FriendRequestFailureCode; message: string };
 
+export type FriendRequestMutationFailureCode =
+  | "AUTHENTICATION_REQUIRED"
+  | "IDENTITY_LINK_REQUIRED"
+  | "INVALID_REQUEST"
+  | "REQUEST_NOT_FOUND"
+  | "REQUEST_ALREADY_HANDLED";
+
+export type FriendRequestMutationResult =
+  | { ok: true }
+  | { ok: false; code: FriendRequestMutationFailureCode; message: string };
+
 function friendRequestFailure(
   code: FriendRequestFailureCode,
   message: string,
@@ -47,10 +58,26 @@ async function resolveCurrentInternalUser(): Promise<{
   return { clerkSubjectId: userId, user };
 }
 
-async function requireCurrentInternalUser(): Promise<{ id: string }> {
+async function resolveMutationActor(): Promise<
+  { ok: true; user: { id: string } } | Extract<FriendRequestMutationResult, { ok: false }>
+> {
   const actor = await resolveCurrentInternalUser();
-  if (!actor.clerkSubjectId) throw new Error("Unauthorized");
-  if (!actor.user) throw new Error("Clerk identity is not linked to a Spenza user");
+  if (!actor.clerkSubjectId) {
+    return { ok: false, code: "AUTHENTICATION_REQUIRED", message: "Please sign in again" };
+  }
+  if (!actor.user) {
+    return {
+      ok: false,
+      code: "IDENTITY_LINK_REQUIRED",
+      message: "Your Clerk account is not linked to a Spenza profile",
+    };
+  }
+  return { ok: true, user: actor.user };
+}
+
+async function requireCurrentInternalUser(): Promise<{ id: string }> {
+  const actor = await resolveMutationActor();
+  if (!actor.ok) throw new Error(actor.message);
   return actor.user;
 }
 
@@ -119,56 +146,66 @@ export async function sendFriendRequest(email: string): Promise<SendFriendReques
     throw error;
   }
 
-  // Log activity
-  await prisma.activity.create({
-    data: {
-      userId: actor.user.id,
-      action: "GROUP_CREATED", // Temporarily using this action enum or we can add FRIEND_REQUEST_SENT later
-      details: { target: targetUser.email, type: "FRIEND_REQUEST" },
-    },
-  });
-
   revalidatePath("/dashboard/friends");
   return { ok: true, friendshipId: friendship.id };
 }
 
-export async function acceptFriendRequest(friendshipId: string) {
-  const actor = await requireCurrentInternalUser();
+export async function acceptFriendRequest(friendshipId: string): Promise<FriendRequestMutationResult> {
+  const actor = await resolveMutationActor();
+  if (!actor.ok) return actor;
+  if (!z.string().min(1).safeParse(friendshipId).success) {
+    return { ok: false, code: "INVALID_REQUEST", message: "Invalid friend request" };
+  }
 
   const friendship = await prisma.friendship.findUnique({
     where: { id: friendshipId },
   });
 
-  if (!friendship || friendship.user2Id !== actor.id) {
-    throw new Error("Friend request not found or unauthorized");
+  if (!friendship || friendship.user2Id !== actor.user.id) {
+    return { ok: false, code: "REQUEST_NOT_FOUND", message: "Friend request not found" };
   }
-
-  await prisma.friendship.update({
-    where: { id: friendshipId },
+  if (friendship.status !== "PENDING") {
+    return { ok: false, code: "REQUEST_ALREADY_HANDLED", message: "This friend request was already handled" };
+  }
+  const updated = await prisma.friendship.updateMany({
+    where: { id: friendshipId, user2Id: actor.user.id, status: "PENDING" },
     data: { status: "ACCEPTED" },
   });
+  if (updated.count !== 1) {
+    return { ok: false, code: "REQUEST_ALREADY_HANDLED", message: "This friend request was already handled" };
+  }
 
   revalidatePath("/dashboard/friends");
-  return true;
+  return { ok: true };
 }
 
-export async function declineFriendRequest(friendshipId: string) {
-  const actor = await requireCurrentInternalUser();
+export async function declineFriendRequest(friendshipId: string): Promise<FriendRequestMutationResult> {
+  const actor = await resolveMutationActor();
+  if (!actor.ok) return actor;
+  if (!z.string().min(1).safeParse(friendshipId).success) {
+    return { ok: false, code: "INVALID_REQUEST", message: "Invalid friend request" };
+  }
 
   const friendship = await prisma.friendship.findUnique({
     where: { id: friendshipId },
   });
 
-  if (!friendship || friendship.user2Id !== actor.id) {
-    throw new Error("Friend request not found or unauthorized");
+  if (!friendship || friendship.user2Id !== actor.user.id) {
+    return { ok: false, code: "REQUEST_NOT_FOUND", message: "Friend request not found" };
+  }
+  if (friendship.status !== "PENDING") {
+    return { ok: false, code: "REQUEST_ALREADY_HANDLED", message: "This friend request was already handled" };
+  }
+  const updated = await prisma.friendship.updateMany({
+    where: { id: friendshipId, user2Id: actor.user.id, status: "PENDING" },
+    data: { status: "DECLINED" },
+  });
+  if (updated.count !== 1) {
+    return { ok: false, code: "REQUEST_ALREADY_HANDLED", message: "This friend request was already handled" };
   }
 
-  await prisma.friendship.delete({
-    where: { id: friendshipId },
-  });
-
   revalidatePath("/dashboard/friends");
-  return true;
+  return { ok: true };
 }
 
 export async function getFriends() {
@@ -208,4 +245,15 @@ export async function getPendingRequests() {
   });
 
   return requests;
+}
+
+export async function getOutgoingRequests() {
+  const actor = await requireCurrentInternalUser();
+  return prisma.friendship.findMany({
+    where: { user1Id: actor.id, status: "PENDING" },
+    include: {
+      user2: { select: { id: true, name: true, email: true, image: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }

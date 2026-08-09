@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchActivityApi } from "@/lib/api-activity";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +53,7 @@ export default function ActivityPage() {
     switch (action) {
       case "EXPENSE_ADDED":
       case "EXPENSE_UPDATED":
+      case "EXPENSE_DELETED":
         return <Receipt className="h-4 w-4 text-orange-500" />;
       case "SETTLEMENT_MADE":
       case "SETTLEMENT_REVERSED":
@@ -72,21 +73,28 @@ export default function ActivityPage() {
       case "EXPENSE_ADDED": {
         const title = typeof details.title === "string" ? details.title : "Expense";
         const totalMinor = typeof details.totalMinor === "string" ? details.totalMinor : undefined;
-        const amountStr = totalMinor ? `$${formatMinorUnitToAmount(totalMinor)}` : "";
+        const currency = typeof details.currency === "string" ? details.currency : "USD";
+        const amountStr = totalMinor ? formatMinorUnitCurrency(totalMinor, currency) : "";
         return `added expense "${title}"${amountStr ? ` for ${amountStr}` : ""}`;
       }
       case "EXPENSE_UPDATED": {
         const title = typeof details.title === "string" ? details.title : "Expense";
         return `updated expense "${title}"`;
       }
+      case "EXPENSE_DELETED": {
+        const title = typeof details.title === "string" ? details.title : "Expense";
+        return `voided expense "${title}"`;
+      }
       case "SETTLEMENT_MADE": {
         const amountMinor = typeof details.amountMinor === "string" ? details.amountMinor : undefined;
-        const amountStr = amountMinor ? `$${formatMinorUnitToAmount(amountMinor)}` : "";
+        const currency = typeof details.currency === "string" ? details.currency : "USD";
+        const amountStr = amountMinor ? formatMinorUnitCurrency(amountMinor, currency) : "";
         return `recorded payment${amountStr ? ` of ${amountStr}` : ""}`;
       }
       case "SETTLEMENT_REVERSED": {
         const amountMinor = typeof details.amountMinor === "string" ? details.amountMinor : undefined;
-        const amountStr = amountMinor ? `$${formatMinorUnitToAmount(amountMinor)}` : "";
+        const currency = typeof details.currency === "string" ? details.currency : "USD";
+        const amountStr = amountMinor ? formatMinorUnitCurrency(amountMinor, currency) : "";
         return `reversed payment${amountStr ? ` of ${amountStr}` : ""}`;
       }
       case "GROUP_CREATED": {

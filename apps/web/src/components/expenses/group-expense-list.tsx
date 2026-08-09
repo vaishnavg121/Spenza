@@ -4,17 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchExpensesApi } from "@/lib/api-expenses";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReceiptText } from "lucide-react";
-import { format } from "date-fns";
-import { formatMinorUnitCurrency } from "@/lib/money";
-import { ReceiptManager } from "@/components/receipts/receipt-manager";
+import type { GroupMemberResponse } from "@spenza/contracts";
+import { ExpenseDetailDialog } from "@/components/expenses/expense-detail-dialog";
 
 interface GroupExpenseListProps {
   groupId: string;
   currentUserId: string;
   currency: string;
+  members: GroupMemberResponse[];
 }
 
-export function GroupExpenseList({ groupId, currentUserId, currency }: GroupExpenseListProps) {
+export function GroupExpenseList({ groupId, currentUserId, members }: GroupExpenseListProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["expenses", groupId],
     queryFn: () => fetchExpensesApi(groupId),
@@ -43,63 +43,7 @@ export function GroupExpenseList({ groupId, currentUserId, currency }: GroupExpe
 
   return (
     <div className="space-y-4">
-      {expenses.map((expense) => {
-        const youPaidStr = expense.payers.find(p => p.userId === currentUserId)?.contributionMinor || "0";
-        const youOweStr = expense.allocations.find(a => a.userId === currentUserId)?.allocationMinor || "0";
-
-        const youPaid = Number(youPaidStr);
-        const youOwe = Number(youOweStr);
-
-        let status = "Not involved";
-        let statusColor = "text-muted-foreground";
-        let statusAmount = "";
-
-        if (youPaid > 0 && youOwe > 0) {
-            const net = youPaid - youOwe;
-            if (net > 0) {
-               status = "You lent";
-               statusColor = "text-emerald-500";
-               statusAmount = formatMinorUnitCurrency(net.toString(), currency);
-            } else if (net < 0) {
-               status = "You owe";
-               statusColor = "text-destructive";
-               statusAmount = formatMinorUnitCurrency(Math.abs(net).toString(), currency);
-            } else {
-               status = "Settled up";
-               statusColor = "text-muted-foreground";
-            }
-        } else if (youPaid > 0) {
-            status = "You lent";
-            statusColor = "text-emerald-500";
-            statusAmount = formatMinorUnitCurrency((youPaid - youOwe).toString(), currency);
-        } else if (youOwe > 0) {
-            status = "You owe";
-            statusColor = "text-destructive";
-            statusAmount = formatMinorUnitCurrency(youOwe.toString(), currency);
-        }
-
-        return (
-          <div key={expense.id} className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                <div className="flex size-12 shrink-0 flex-col items-center justify-center rounded-xl bg-muted text-center leading-tight">
-                   <span className="text-xs text-muted-foreground font-medium uppercase">{format(new Date(expense.date), 'MMM')}</span>
-                   <span className="text-lg font-bold">{format(new Date(expense.date), 'dd')}</span>
-                </div>
-                 <div className="min-w-0">
-                   <p className="truncate font-medium">{expense.title}</p>
-                   <p className="truncate text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">{formatMinorUnitCurrency(expense.totalMinor, expense.currency)}</span>
-                   </p>
-                   <ReceiptManager groupId={groupId} expenseId={expense.id} />
-                </div>
-             </div>
-             <div className="flex items-center justify-between gap-3 border-t pt-3 text-left sm:block sm:border-0 sm:pt-0 sm:text-right">
-                <p className={`text-xs font-medium ${statusColor}`}>{status}</p>
-                {statusAmount && <p className={`font-bold tabular-nums ${statusColor}`}>{statusAmount}</p>}
-             </div>
-          </div>
-        );
-      })}
+      {expenses.map((expense) => <ExpenseDetailDialog key={expense.id} expense={expense} groupId={groupId} currentUserId={currentUserId} members={members.map((member) => ({ id: member.userId, name: member.user.name, image: member.user.image ?? null }))} />)}
     </div>
   );
 }

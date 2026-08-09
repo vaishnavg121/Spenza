@@ -24,6 +24,7 @@ export interface GroupRepository {
   addMember(groupId: string, userId: string, role: GroupRole): Promise<GroupMember>;
   removeMember(groupId: string, userId: string): Promise<void>;
   countAdmins(groupId: string): Promise<number>;
+  hasFinancialHistory(groupId: string, userId: string): Promise<boolean>;
   findAcceptedFriend(userId: string, friendUserId: string): Promise<{ id: string; name: string; email: string; image: string | null } | null>;
   createActivity(userId: string, groupId: string, action: "GROUP_CREATED" | "USER_JOINED", details?: Record<string, unknown>): Promise<Activity>;
 }
@@ -191,6 +192,25 @@ export class PrismaGroupRepository implements GroupRepository {
         role: "ADMIN",
       },
     });
+  }
+
+  async hasFinancialHistory(groupId: string, userId: string): Promise<boolean> {
+    const [expenseCount, settlementCount] = await this.prisma.$transaction([
+      this.prisma.expense.count({
+        where: {
+          groupId,
+          OR: [
+            { creatorId: userId },
+            { payments: { some: { userId } } },
+            { splits: { some: { userId } } },
+          ],
+        },
+      }),
+      this.prisma.settlement.count({
+        where: { groupId, OR: [{ payerId: userId }, { payeeId: userId }] },
+      }),
+    ]);
+    return expenseCount > 0 || settlementCount > 0;
   }
 
   async findAcceptedFriend(userId: string, friendUserId: string): Promise<{ id: string; name: string; email: string; image: string | null } | null> {

@@ -17,8 +17,8 @@ RUN pnpm install --frozen-lockfile
 # Copy source
 COPY . .
 
-# Build API
-RUN pnpm --filter @spenza/api build
+# Build the API and its runtime workspace dependencies
+RUN pnpm --filter @spenza/api... build
 
 # Production image
 FROM node:20-alpine AS runner

@@ -35,3 +35,9 @@ export async function leaveGroupApi(groupId: string): Promise<void> {
     method: "POST",
   });
 }
+
+export async function removeGroupMemberApi(groupId: string, userId: string): Promise<void> {
+  return apiFetch<void>(`/v1/groups/${groupId}/members/${userId}`, {
+    method: "DELETE",
+  });
+}

@@ -31,7 +31,8 @@ const createExpense = vi.fn<ExpenseRouteService["createExpense"]>();
 const listExpenses = vi.fn<ExpenseRouteService["listExpenses"]>();
 const getExpense = vi.fn<ExpenseRouteService["getExpense"]>();
 const updateExpense = vi.fn<ExpenseRouteService["updateExpense"]>();
-const service: ExpenseRouteService = { createExpense, listExpenses, getExpense, updateExpense };
+const voidExpense = vi.fn<ExpenseRouteService["voidExpense"]>();
+const service: ExpenseRouteService = { createExpense, listExpenses, getExpense, updateExpense, voidExpense };
 
 function testApp(authenticated = true) {
   const app = express();
@@ -65,6 +66,20 @@ describe("Expense API routes", () => {
     const response = await request(testApp(false)).get("/v1/groups/group_1/expenses");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
+  });
+
+  it("voids an expense through the authenticated versioned endpoint", async () => {
+    voidExpense.mockResolvedValue({ ...expense, version: 2, voidedAt: "2026-08-09T00:00:00.000Z" });
+    const response = await request(testApp()).post("/v1/groups/group_1/expenses/expense_1/void").send({ expectedVersion: 1 });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ id: "expense_1", version: 2, voidedAt: "2026-08-09T00:00:00.000Z" });
+    expect(voidExpense).toHaveBeenCalledWith("user_1", "group_1", "expense_1", { expectedVersion: 1 }, "req_test");
+  });
+
+  it("rejects malformed void input before reaching the service", async () => {
+    const response = await request(testApp()).post("/v1/groups/group_1/expenses/expense_1/void").send({ expectedVersion: 0 });
+    expect(response.status).toBe(400);
+    expect(voidExpense).not.toHaveBeenCalled();
   });
 
   it("creates an expense with a required idempotency key", async () => {

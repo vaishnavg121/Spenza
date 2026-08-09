@@ -6,6 +6,7 @@ import {
   type ExpenseResponse,
   type ExpenseSplitInput,
   type UpdateExpenseInput,
+  type VoidExpenseInput,
 } from "@spenza/contracts";
 import {
   ConflictError,
@@ -130,6 +131,7 @@ export function serializeExpense(expense: ExpenseRecord): ExpenseResponse {
     title: expense.title,
     description: expense.description,
     categoryId: expense.categoryId,
+    categoryName: expense.categoryName ?? null,
     totalMinor: expense.totalMinor.toString(),
     currency: expense.currency,
     splitType: expense.splitType,
@@ -137,6 +139,7 @@ export function serializeExpense(expense: ExpenseRecord): ExpenseResponse {
     date: expense.date.toISOString(),
     createdAt: expense.createdAt.toISOString(),
     updatedAt: expense.updatedAt.toISOString(),
+    voidedAt: expense.voidedAt?.toISOString() ?? null,
     payers: expense.payments.map((payment) => ({
       userId: payment.userId,
       contributionMinor: payment.contributionMinor.toString(),
@@ -231,7 +234,7 @@ export class ExpenseService {
 
   async getExpense(actorUserId: string, groupId: string, expenseId: string): Promise<ExpenseResponse> {
     await this.requireActorMembership(this.repository, actorUserId, groupId);
-    const expense = await this.repository.findExpenseById(groupId, expenseId);
+    const expense = await this.repository.findExpenseById(groupId, expenseId, true);
     if (!expense) throw new NotFoundError("Expense not found");
     return serializeExpense(expense);
   }
@@ -249,8 +252,11 @@ export class ExpenseService {
         if (actorContext.isArchived) {
           throw new UnprocessableEntityError("Archived groups cannot accept expense changes", "GROUP_ARCHIVED");
         }
-        const existing = await transaction.findExpenseById(groupId, expenseId);
+        const existing = await transaction.findExpenseById(groupId, expenseId, true);
         if (!existing) throw new NotFoundError("Expense not found");
+        if (existing.voidedAt) {
+          throw new ConflictError("Voided expenses cannot be edited", "EXPENSE_ALREADY_VOIDED");
+        }
         if (existing.version !== input.expectedVersion) {
           throw new ConflictError("Expense version is stale", "VERSION_CONFLICT");
         }
@@ -276,6 +282,47 @@ export class ExpenseService {
         const response = serializeExpense(updated);
         await transaction.appendRevision(response, actorUserId);
         await transaction.appendActivity("EXPENSE_UPDATED", response, actorUserId, requestId);
+        return response;
+      });
+    } catch (error) {
+      if (error instanceof ConcurrentExpenseWriteError) {
+        throw new ConflictError("Expense version is stale", "VERSION_CONFLICT");
+      }
+      throw error;
+    }
+  }
+
+  async voidExpense(
+    actorUserId: string,
+    groupId: string,
+    expenseId: string,
+    input: VoidExpenseInput,
+    requestId: string,
+  ): Promise<ExpenseResponse> {
+    try {
+      return await this.repository.withTransaction(async (transaction) => {
+        const actorContext = await this.requireActorMembership(transaction, actorUserId, groupId);
+        if (actorContext.isArchived) {
+          throw new UnprocessableEntityError("Archived groups cannot accept expense changes", "GROUP_ARCHIVED");
+        }
+        const existing = await transaction.findExpenseById(groupId, expenseId, true);
+        if (!existing) throw new NotFoundError("Expense not found");
+        if (existing.voidedAt) {
+          throw new ConflictError("Expense is already voided", "EXPENSE_ALREADY_VOIDED");
+        }
+        if (existing.version !== input.expectedVersion) {
+          throw new ConflictError("Expense version is stale", "VERSION_CONFLICT");
+        }
+        const voided = await transaction.voidExpenseIfVersion(
+          groupId,
+          expenseId,
+          input.expectedVersion,
+          new Date(),
+        );
+        if (!voided) throw new ConflictError("Expense version is stale", "VERSION_CONFLICT");
+        const response = serializeExpense(voided);
+        await transaction.appendRevision(response, actorUserId);
+        await transaction.appendActivity("EXPENSE_DELETED", response, actorUserId, requestId);
         return response;
       });
     } catch (error) {

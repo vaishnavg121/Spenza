@@ -22,6 +22,7 @@ const { repository, service } = vi.hoisted(() => ({
     addMember: vi.fn(),
     removeMember: vi.fn(),
     countAdmins: vi.fn(),
+    hasFinancialHistory: vi.fn(),
     findAcceptedFriend: vi.fn(),
     createActivity: vi.fn(),
   },
@@ -182,6 +183,14 @@ describe("Group & Membership API Endpoints", () => {
     expect(res.status).toBe(403);
   });
 
+  it("PATCH /v1/groups/:groupId rejects client-controlled role escalation fields", async () => {
+    const res = await request(app("clerk_user_1"))
+      .patch("/v1/groups/grp_123")
+      .send({ role: "ADMIN" });
+    expect(res.status).toBe(400);
+    expect(service.updateGroup).not.toHaveBeenCalled();
+  });
+
   it("POST /v1/groups/:groupId/members adds an accepted friend by internal user ID", async () => {
     vi.mocked(service.addGroupMember).mockResolvedValue(mockGroupResponse);
 
@@ -276,6 +285,7 @@ class MembershipTestRepository implements GroupRepository {
     image: null,
   };
   duplicateOnAdd = false;
+  financialHistory = false;
 
   async createGroup(_userId: string, _data: CreateGroupInput): Promise<GroupWithMembers> {
     throw new Error("Not used in membership tests");
@@ -290,7 +300,8 @@ class MembershipTestRepository implements GroupRepository {
   }
 
   async updateGroup(_groupId: string, _data: UpdateGroupInput): Promise<GroupWithMembers> {
-    throw new Error("Not used in membership tests");
+    this.group = { ...this.group, ..._data, updatedAt: new Date("2026-08-09T01:00:00.000Z") };
+    return this.group;
   }
 
   async findMember(groupId: string, userId: string): Promise<GroupMember | null> {
@@ -304,10 +315,16 @@ class MembershipTestRepository implements GroupRepository {
     return created;
   }
 
-  async removeMember(_groupId: string, _userId: string): Promise<void> {}
+  async removeMember(_groupId: string, userId: string): Promise<void> {
+    this.group.members = this.group.members.filter((groupMember) => groupMember.userId !== userId);
+  }
 
   async countAdmins(_groupId: string): Promise<number> {
     return this.group.members.filter((groupMember) => groupMember.role === "ADMIN").length;
+  }
+
+  async hasFinancialHistory(_groupId: string, _userId: string): Promise<boolean> {
+    return this.financialHistory;
   }
 
   async findAcceptedFriend(userId: string, targetUserId: string) {
@@ -387,5 +404,44 @@ describe("GroupService accepted-friend membership rules", () => {
 
     await expect(groupService.addGroupMember(actorId, "group_1", { userId: friendId }))
       .rejects.toMatchObject({ statusCode: 403, code: "FORBIDDEN" });
+  });
+});
+
+describe("GroupService management safety", () => {
+  it("allows an administrator to rename a group", async () => {
+    const repository = new MembershipTestRepository();
+    const result = await new GroupService(repository).updateGroup(actorId, "group_1", { name: "Renamed group" });
+    expect(result.name).toBe("Renamed group");
+  });
+
+  it("rejects settings updates by a regular member", async () => {
+    const repository = new MembershipTestRepository();
+    repository.group = groupWithActor("MEMBER");
+    await expect(new GroupService(repository).updateGroup(actorId, "group_1", { name: "Nope" }))
+      .rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("blocks removal when a member has financial history", async () => {
+    const repository = new MembershipTestRepository();
+    repository.group.members.push(member(friendId, "MEMBER"));
+    repository.financialHistory = true;
+    await expect(new GroupService(repository).removeGroupMember(actorId, "group_1", friendId))
+      .rejects.toMatchObject({ statusCode: 409, code: "MEMBER_HAS_FINANCIAL_HISTORY" });
+    expect(repository.group.members.map((groupMember) => groupMember.userId)).toContain(friendId);
+  });
+
+  it("allows an administrator to remove a member with no financial history", async () => {
+    const repository = new MembershipTestRepository();
+    repository.group.members.push(member(friendId, "MEMBER"));
+    await new GroupService(repository).removeGroupMember(actorId, "group_1", friendId);
+    expect(repository.group.members.map((groupMember) => groupMember.userId)).not.toContain(friendId);
+  });
+
+  it("blocks leaving when the member has financial history", async () => {
+    const repository = new MembershipTestRepository();
+    repository.group = groupWithActor("MEMBER");
+    repository.financialHistory = true;
+    await expect(new GroupService(repository).removeGroupMember(actorId, "group_1", actorId))
+      .rejects.toMatchObject({ statusCode: 409, code: "MEMBER_HAS_FINANCIAL_HISTORY" });
   });
 });

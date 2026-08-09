@@ -46,7 +46,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="h-full min-h-full flex flex-col antialiased">
-        <ClerkProvider>
+        <ClerkProvider
+          signInUrl="/login"
+          signUpUrl="/signup"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/dashboard"
+        >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

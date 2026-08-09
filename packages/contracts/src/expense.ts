@@ -87,6 +87,10 @@ export const UpdateExpenseSchema = z.object({
   { message: "At least one editable expense field is required" },
 );
 
+export const VoidExpenseSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+}).strict();
+
 export const ExpenseAllocationResponseSchema = z.object({
   userId: z.string(),
   allocationMinor: NonNegativeMinorUnitStringSchema,
@@ -106,6 +110,7 @@ export const ExpenseResponseSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   categoryId: z.string().nullable(),
+  categoryName: z.string().nullable().optional(),
   totalMinor: PositiveMinorUnitStringSchema,
   currency: CurrencyCodeSchema,
   splitType: z.enum(["EQUAL", "EXACT", "PERCENTAGE", "SHARES"]),
@@ -113,6 +118,7 @@ export const ExpenseResponseSchema = z.object({
   date: z.iso.datetime(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  voidedAt: z.iso.datetime().nullable().optional(),
   payers: z.array(ExpensePaymentResponseSchema),
   allocations: z.array(ExpenseAllocationResponseSchema),
 }).strict();
@@ -137,6 +143,7 @@ export const ExpensePageSchema = z.object({
 
 export type CreateExpenseInput = z.infer<typeof CreateExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof UpdateExpenseSchema>;
+export type VoidExpenseInput = z.infer<typeof VoidExpenseSchema>;
 export type ExpenseSplitInput = z.infer<typeof ExpenseSplitInputSchema>;
 export type ExpenseResponse = z.infer<typeof ExpenseResponseSchema>;
 export type ExpenseListQuery = z.infer<typeof ExpenseListQuerySchema>;
