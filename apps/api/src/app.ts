@@ -25,6 +25,9 @@ import { groupInviteRouter } from "./routes/group-invites.js";
 export function createApp(): express.Application {
   const app = express();
 
+  // Trust Google Cloud proxy for correct client IPs
+  app.set('trust proxy', 1);
+
   // 1. Request ID propagation
   app.use(requestIdMiddleware);
   app.use(clerkMiddleware());
