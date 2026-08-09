@@ -7,19 +7,19 @@ import { DashboardResponse } from "@spenza/contracts";
 import { errorHandler } from "../middleware/error-handler.js";
 
 const mockDashboardResponse: DashboardResponse = {
-  balances: {
+  currencySummaries: [{
     totalOwedMinor: "5000",
     totalOwingMinor: "2000",
     netBalanceMinor: "3000",
     currency: "USD",
-  },
+    spendingChart: [
+      { month: "Mar", spendingMinor: "1000" },
+      { month: "Apr", spendingMinor: "2000" },
+    ],
+  }],
   recentExpenses: [],
   recentSettlements: [],
   recentActivities: [],
-  spendingChart: [
-    { month: "Mar", spendingMinor: "1000" },
-    { month: "Apr", spendingMinor: "2000" },
-  ],
 };
 
 function buildApp(authenticated = true, getDashboardDataMock = vi.fn()) {

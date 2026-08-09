@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExpenseSearchApi } from "@/lib/api-search";
-import { parseAmountToMinorUnit, formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency, parseAmountToMinorUnit } from "@/lib/money";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -126,7 +126,7 @@ export default function SearchPage() {
 
               <div className="flex items-center justify-between border-t pt-3 sm:border-0 sm:pt-0">
                 <span className="text-base font-bold tabular-nums text-foreground">
-                  ${formatMinorUnitToAmount(expense.totalMinor)}
+                  {formatMinorUnitCurrency(expense.totalMinor, expense.currency)}
                 </span>
               </div>
             </div>

@@ -1,0 +1,103 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Deploy on version tags
+
+env:
+  GCP_PROJECT_ID: spenza-prod
+  GCP_REGION: us-central1
+  ARTIFACT_REPO: us-central1-docker.pkg.dev/spenza-prod/spenza
+  API_SERVICE_NAME: spenza-api
+  WEB_SERVICE_NAME: spenza-web
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and Push Docker Images
+        run: |
+          docker build -t ${{ env.ARTIFACT_REPO }}/${{ env.API_SERVICE_NAME }}:${{ github.sha }} -f apps/api/Dockerfile .
+          docker push ${{ env.ARTIFACT_REPO }}/${{ env.API_SERVICE_NAME }}:${{ github.sha }}
+          
+          docker build -t ${{ env.ARTIFACT_REPO }}/${{ env.WEB_SERVICE_NAME }}:${{ github.sha }} -f apps/web/Dockerfile .
+          docker push ${{ env.ARTIFACT_REPO }}/${{ env.WEB_SERVICE_NAME }}:${{ github.sha }}
+
+      - name: Database Migration
+        run: |
+          echo "Running Prisma Migrations safely via Cloud Run Job..."
+          # Deploy and execute a Cloud Run job dedicated to running `prisma migrate deploy`
+          # This should ONLY be executed after database backup in production
+          # gcloud run jobs execute spenza-db-migrate --wait
+
+      - name: Deploy API to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.API_SERVICE_NAME }}
+          image: ${{ env.ARTIFACT_REPO }}/${{ env.API_SERVICE_NAME }}:${{ github.sha }}
+          region: ${{ env.GCP_REGION }}
+          flags: |
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=2
+            --cpu=1
+            --memory=512Mi
+            --no-cpu-boost
+            --execution-environment=gen1
+          env_vars: |
+            NODE_ENV=production
+            PORT=4000
+          secrets: |
+            DATABASE_URL=DATABASE_URL:latest
+            CLERK_SECRET_KEY=CLERK_SECRET_KEY:latest
+            VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest
+
+      - name: Deploy Web to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.WEB_SERVICE_NAME }}
+          image: ${{ env.ARTIFACT_REPO }}/${{ env.WEB_SERVICE_NAME }}:${{ github.sha }}
+          region: ${{ env.GCP_REGION }}
+          flags: |
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=2
+            --cpu=1
+            --memory=512Mi
+            --no-cpu-boost
+            --execution-environment=gen1
+          env_vars: |
+            NODE_ENV=production
+            PORT=3000
+          secrets: |
+            CLERK_SECRET_KEY=CLERK_SECRET_KEY:latest

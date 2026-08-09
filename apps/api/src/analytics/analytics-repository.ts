@@ -41,6 +41,20 @@ export interface AnalyticsRepository {
   ): Promise<RawAnalyticsData>;
 }
 
+export class AnalyticsCurrencyMismatchError extends Error {
+  constructor() {
+    super("Analytics cannot combine groups with different currencies");
+  }
+}
+
+export function resolveAnalyticsCurrency(currencies: string[]): string {
+  const uniqueCurrencies = [...new Set(currencies)];
+  if (uniqueCurrencies.length > 1) {
+    throw new AnalyticsCurrencyMismatchError();
+  }
+  return uniqueCurrencies[0] ?? "USD";
+}
+
 export class PrismaAnalyticsRepository implements AnalyticsRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -57,13 +71,12 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
     authorizedGroupIds: string[],
     query: AnalyticsQuery
   ): Promise<RawAnalyticsData> {
-    const launchCurrency = "USD";
     if (authorizedGroupIds.length === 0) {
       return {
         personalSpendingMinor: 0n,
         totalContributedMinor: 0n,
         totalGroupExpensesMinor: 0n,
-        currency: launchCurrency,
+        currency: "USD",
         categoryBreakdown: [],
         monthlyTrends: getEmptyMonthlyTrends(),
         groupBreakdown: [],
@@ -77,7 +90,7 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
           personalSpendingMinor: 0n,
           totalContributedMinor: 0n,
           totalGroupExpensesMinor: 0n,
-          currency: launchCurrency,
+          currency: "USD",
           categoryBreakdown: [],
           monthlyTrends: getEmptyMonthlyTrends(),
           groupBreakdown: [],
@@ -85,6 +98,12 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
       }
       targetGroupIds = [query.groupId];
     }
+
+    const targetGroups = await this.prisma.group.findMany({
+      where: { id: { in: targetGroupIds } },
+      select: { currency: true },
+    });
+    const currency = resolveAnalyticsCurrency(targetGroups.map((group) => group.currency));
 
     const dateFilter = query.dateFrom || query.dateTo
       ? {
@@ -222,7 +241,7 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
       personalSpendingMinor,
       totalContributedMinor,
       totalGroupExpensesMinor,
-      currency: launchCurrency,
+      currency,
       categoryBreakdown: [...categoryMap.values()],
       monthlyTrends: monthlyTrends.map(({ month, personalSpendingMinor, groupTotalMinor }) => ({
         month,

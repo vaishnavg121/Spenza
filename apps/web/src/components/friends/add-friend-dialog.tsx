@@ -24,14 +24,19 @@ export function AddFriendDialog() {
 
   const mutation = useMutation({
     mutationFn: sendFriendRequest,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
       toast.success("Friend request sent!");
       queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
       setOpen(false);
       setEmail("");
     },
-    onError: (error) => {
-      toast.error(error.message || "Failed to send request");
+    onError: () => {
+      toast.error("Failed to send request. Please try again.");
     },
   });
 

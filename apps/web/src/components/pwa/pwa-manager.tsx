@@ -12,8 +12,43 @@ export function PwaManager() {
       return;
     }
 
-    // Register root service worker
-    window.addEventListener("load", () => {
+    const isDev =
+      process.env.NODE_ENV === "development" ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+
+    // In development mode, strictly unregister service workers and purge Spenza caches
+    if (isDev) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          const scriptURL =
+            registration.active?.scriptURL ||
+            registration.installing?.scriptURL ||
+            registration.waiting?.scriptURL ||
+            "";
+          if (
+            scriptURL.includes("sw.js") ||
+            registration.scope === window.location.origin + "/" ||
+            registration.scope.includes("localhost")
+          ) {
+            registration.unregister();
+          }
+        }
+      });
+      if ("caches" in window) {
+        caches.keys().then((cacheNames) => {
+          for (const cacheName of cacheNames) {
+            if (cacheName.startsWith("spenza-")) {
+              caches.delete(cacheName);
+            }
+          }
+        });
+      }
+      return;
+    }
+
+    // Register root service worker in production only
+    const registerSw = () => {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .catch((error) => {
@@ -22,7 +57,13 @@ export function PwaManager() {
             console.warn("Service worker registration error:", error);
           }
         });
-    });
+    };
+
+    if (document.readyState === "complete") {
+      registerSw();
+    } else {
+      window.addEventListener("load", registerSw);
+    }
   }, []);
 
   return (

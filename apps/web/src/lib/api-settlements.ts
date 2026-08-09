@@ -1,4 +1,4 @@
-import { apiFetch } from "./api-client";
+import { apiFetch, apiFetchPage } from "./api-client";
 import type { 
   CreateSettlementInput, 
   SettlementResponse, 
@@ -26,7 +26,7 @@ export async function fetchSettlementsApi(groupId: string, cursor?: string): Pro
   }
   const queryString = searchParams.toString();
   const path = `/v1/groups/${groupId}/settlements${queryString ? `?${queryString}` : ""}`;
-  return apiFetch<SettlementPage>(path);
+  return apiFetchPage<SettlementPage>(path);
 }
 
 export async function reverseSettlementApi(

@@ -48,7 +48,7 @@ describe("GET /v1/search/expenses", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, no-store");
-    expect(response.body).toEqual(mockSearchPage);
+    expect(response.body).toEqual({ data: mockSearchPage });
     expect(searchExpenses).toHaveBeenCalledWith("user_1", { q: "Dinner", limit: 20 });
   });
 });

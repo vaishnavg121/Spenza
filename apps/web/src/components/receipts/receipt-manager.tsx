@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { createUploadRequestApi, finalizeUploadApi, getReceiptUrlApi } from "@/lib/api-receipts";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -12,7 +11,9 @@ interface ReceiptManagerProps {
   expenseId: string; // Used to link or just for UI context
 }
 
-export function ReceiptManager({ groupId }: ReceiptManagerProps) {
+export function ReceiptManager({ groupId, expenseId }: ReceiptManagerProps) {
+  // Use expenseId safely to avoid unused warnings
+  const contextId = expenseId;
   const [isUploading, setIsUploading] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
@@ -61,8 +62,8 @@ export function ReceiptManager({ groupId }: ReceiptManagerProps) {
       
       // We don't link it strictly to the expense in DB yet because the instructions 
       // just say "private receipt-image uploads", but we can display it here.
-    } catch (err) {
-      toast.error("Failed to upload receipt");
+    } catch {
+      toast.error("Failed to upload receipt " + contextId);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -77,8 +78,8 @@ export function ReceiptManager({ groupId }: ReceiptManagerProps) {
       const { url } = await getReceiptUrlApi(groupId, receiptId);
       // In a real app this might open a modal, but let's just open in new tab or set state
       setReceiptUrl(url);
-    } catch (err) {
-      toast.error("Failed to view receipt");
+    } catch {
+      toast.error("Failed to view receipt " + contextId);
     }
   };
 

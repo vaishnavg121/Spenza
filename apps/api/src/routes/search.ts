@@ -32,7 +32,7 @@ export function createSearchRouter(
       const query = ExpenseSearchQuerySchema.parse(req.query);
       const data = await getService().searchExpenses(actorUserId, query);
       res.setHeader("Cache-Control", "private, no-store");
-      res.json(data);
+      res.json({ data });
     } catch (error) {
       next(error);
     }

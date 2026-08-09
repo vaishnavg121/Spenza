@@ -23,10 +23,10 @@ export async function updateGroupApi(groupId: string, data: UpdateGroupInput): P
   });
 }
 
-export async function addGroupMemberApi(groupId: string, email: string): Promise<GroupResponse> {
+export async function addGroupMemberApi(groupId: string, userId: string): Promise<GroupResponse> {
   return apiFetch<GroupResponse>(`/v1/groups/${groupId}/members`, {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ userId }),
   });
 }
 

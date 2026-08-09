@@ -5,15 +5,16 @@ import { fetchExpensesApi } from "@/lib/api-expenses";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReceiptText } from "lucide-react";
 import { format } from "date-fns";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 import { ReceiptManager } from "@/components/receipts/receipt-manager";
 
 interface GroupExpenseListProps {
   groupId: string;
   currentUserId: string;
+  currency: string;
 }
 
-export function GroupExpenseList({ groupId, currentUserId }: GroupExpenseListProps) {
+export function GroupExpenseList({ groupId, currentUserId, currency }: GroupExpenseListProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["expenses", groupId],
     queryFn: () => fetchExpensesApi(groupId),
@@ -58,11 +59,11 @@ export function GroupExpenseList({ groupId, currentUserId }: GroupExpenseListPro
             if (net > 0) {
                status = "You lent";
                statusColor = "text-emerald-500";
-               statusAmount = `$${formatMinorUnitToAmount(net.toString())}`;
+               statusAmount = formatMinorUnitCurrency(net.toString(), currency);
             } else if (net < 0) {
                status = "You owe";
                statusColor = "text-destructive";
-               statusAmount = `$${formatMinorUnitToAmount(Math.abs(net).toString())}`;
+               statusAmount = formatMinorUnitCurrency(Math.abs(net).toString(), currency);
             } else {
                status = "Settled up";
                statusColor = "text-muted-foreground";
@@ -70,11 +71,11 @@ export function GroupExpenseList({ groupId, currentUserId }: GroupExpenseListPro
         } else if (youPaid > 0) {
             status = "You lent";
             statusColor = "text-emerald-500";
-            statusAmount = `$${formatMinorUnitToAmount((youPaid - youOwe).toString())}`;
+            statusAmount = formatMinorUnitCurrency((youPaid - youOwe).toString(), currency);
         } else if (youOwe > 0) {
             status = "You owe";
             statusColor = "text-destructive";
-            statusAmount = `$${formatMinorUnitToAmount(youOwe.toString())}`;
+            statusAmount = formatMinorUnitCurrency(youOwe.toString(), currency);
         }
 
         return (
@@ -87,7 +88,7 @@ export function GroupExpenseList({ groupId, currentUserId }: GroupExpenseListPro
                  <div className="min-w-0">
                    <p className="truncate font-medium">{expense.title}</p>
                    <p className="truncate text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">${formatMinorUnitToAmount(expense.totalMinor)}</span>
+                      <span className="font-medium text-foreground">{formatMinorUnitCurrency(expense.totalMinor, expense.currency)}</span>
                    </p>
                    <ReceiptManager groupId={groupId} expenseId={expense.id} />
                 </div>

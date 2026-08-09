@@ -32,6 +32,14 @@ export interface DashboardRepository {
   findMonthlySpending(userId: string, groupIds: string[]): Promise<MonthlySpending[]>;
 }
 
+export function resolveDashboardCurrency(
+  groupCurrency: string,
+  recordCurrency: string,
+  authoritativeMinorAmount: bigint | null,
+): string {
+  return authoritativeMinorAmount === null ? groupCurrency : recordCurrency;
+}
+
 export class PrismaDashboardRepository implements DashboardRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -88,7 +96,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
           allocationMinor: s.allocationMinor ?? BigInt(Math.round(s.amountOwed * 100)),
         }));
         return {
-          currency: expense.currency,
+          currency: resolveDashboardCurrency(group.currency, expense.currency, expense.totalMinor),
           totalMinor,
           payments,
           allocations,
@@ -96,7 +104,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
       });
 
       const ledgerSettlements: LedgerSettlement[] = group.settlements.map((s) => ({
-        currency: s.currency,
+        currency: resolveDashboardCurrency(group.currency, s.currency, s.amountMinor),
         payerId: s.payerId,
         receiverId: s.payeeId,
         amountMinor: s.amountMinor ?? BigInt(Math.round(s.amount * 100)),
@@ -122,6 +130,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         voidedAt: null,
       },
       include: {
+        group: { select: { currency: true } },
         payments: { select: { userId: true, contributionMinor: true, paymentOrder: true } },
         splits: { select: { userId: true, allocationMinor: true, allocationOrder: true, percentageBps: true, shareWeight: true, amountOwed: true } },
       },
@@ -154,7 +163,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         description: record.description,
         categoryId: record.categoryId,
         totalMinor,
-        currency: record.currency,
+        currency: resolveDashboardCurrency(record.group!.currency, record.currency, record.totalMinor),
         splitType: record.splitType as ExpenseRecord["splitType"],
         version: record.version,
         date: record.date,
@@ -180,6 +189,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         { id: "desc" },
       ],
       take: limit,
+      include: { group: { select: { currency: true } } },
     });
 
     return records.map((record) => ({
@@ -188,7 +198,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
       payerId: record.payerId,
       receiverId: record.payeeId,
       amountMinor: record.amountMinor ?? BigInt(Math.round(record.amount * 100)),
-      currency: record.currency,
+      currency: resolveDashboardCurrency(record.group!.currency, record.currency, record.amountMinor),
       method: record.method,
       kind: record.kind,
       status: record.status,

@@ -24,8 +24,15 @@ export interface GroupRepository {
   addMember(groupId: string, userId: string, role: GroupRole): Promise<GroupMember>;
   removeMember(groupId: string, userId: string): Promise<void>;
   countAdmins(groupId: string): Promise<number>;
-  findUserByEmail(email: string): Promise<{ id: string; name: string; email: string; image: string | null } | null>;
+  findAcceptedFriend(userId: string, friendUserId: string): Promise<{ id: string; name: string; email: string; image: string | null } | null>;
   createActivity(userId: string, groupId: string, action: "GROUP_CREATED" | "USER_JOINED", details?: Record<string, unknown>): Promise<Activity>;
+}
+
+export class DuplicateGroupMemberError extends Error {
+  constructor() {
+    super("Group member already exists");
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
 }
 
 export class PrismaGroupRepository implements GroupRepository {
@@ -150,13 +157,20 @@ export class PrismaGroupRepository implements GroupRepository {
   }
 
   async addMember(groupId: string, userId: string, role: GroupRole): Promise<GroupMember> {
-    return this.prisma.groupMember.create({
-      data: {
-        groupId,
-        userId,
-        role,
-      },
-    });
+    try {
+      return await this.prisma.groupMember.create({
+        data: {
+          groupId,
+          userId,
+          role,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new DuplicateGroupMemberError();
+      }
+      throw error;
+    }
   }
 
   async removeMember(groupId: string, userId: string): Promise<void> {
@@ -179,11 +193,23 @@ export class PrismaGroupRepository implements GroupRepository {
     });
   }
 
-  async findUserByEmail(email: string): Promise<{ id: string; name: string; email: string; image: string | null } | null> {
-    return this.prisma.user.findUnique({
-      where: { email },
-      select: { id: true, name: true, email: true, image: true },
+  async findAcceptedFriend(userId: string, friendUserId: string): Promise<{ id: string; name: string; email: string; image: string | null } | null> {
+    const friendship = await this.prisma.friendship.findFirst({
+      where: {
+        status: "ACCEPTED",
+        OR: [
+          { user1Id: userId, user2Id: friendUserId },
+          { user1Id: friendUserId, user2Id: userId },
+        ],
+      },
+      include: {
+        user1: { select: { id: true, name: true, email: true, image: true } },
+        user2: { select: { id: true, name: true, email: true, image: true } },
+      },
     });
+
+    if (!friendship) return null;
+    return friendship.user1Id === userId ? friendship.user2 : friendship.user1;
   }
 
   async createActivity(userId: string, groupId: string, action: "GROUP_CREATED" | "USER_JOINED", details?: Record<string, unknown>): Promise<Activity> {

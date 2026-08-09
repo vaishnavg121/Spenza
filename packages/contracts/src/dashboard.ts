@@ -17,14 +17,18 @@ export const SpendingBarDataSchema = z.object({
   spendingMinor: NonNegativeMinorUnitStringSchema,
 }).strict();
 
+export const DashboardCurrencySummarySchema = DashboardBalancesSchema.extend({
+  spendingChart: z.array(SpendingBarDataSchema),
+}).strict();
+
 export const DashboardResponseSchema = z.object({
-  balances: DashboardBalancesSchema,
+  currencySummaries: z.array(DashboardCurrencySummarySchema),
   recentExpenses: z.array(ExpenseResponseSchema),
   recentSettlements: z.array(SettlementResponseSchema),
   recentActivities: z.array(ActivityItemSchema),
-  spendingChart: z.array(SpendingBarDataSchema),
 }).strict();
 
 export type DashboardBalances = z.infer<typeof DashboardBalancesSchema>;
 export type SpendingBarData = z.infer<typeof SpendingBarDataSchema>;
+export type DashboardCurrencySummary = z.infer<typeof DashboardCurrencySummarySchema>;
 export type DashboardResponse = z.infer<typeof DashboardResponseSchema>;

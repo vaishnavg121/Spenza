@@ -56,7 +56,6 @@ export const GroupResponseSchema = z.object({
 export type GroupResponse = z.infer<typeof GroupResponseSchema>;
 
 export const AddGroupMemberSchema = z.object({
-  email: z.string().trim().email("Invalid email address"),
-  role: z.enum(["ADMIN", "MEMBER"]).optional().default("MEMBER"),
-});
+  userId: z.string().trim().min(1, "Friend user ID is required"),
+}).strict();
 export type AddGroupMemberInput = z.infer<typeof AddGroupMemberSchema>;

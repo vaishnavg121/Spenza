@@ -120,7 +120,7 @@ export function CreateGroupDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value ?? "USD"}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select currency" />

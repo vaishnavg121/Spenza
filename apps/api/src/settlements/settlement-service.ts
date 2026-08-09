@@ -146,15 +146,16 @@ export class SettlementService {
   async listSettlements(
     actorUserId: string,
     groupId: string,
-    options: { cursor?: string; limit: number },
+    options?: { cursor?: string; limit?: number },
   ): Promise<SettlementPage> {
     await this.requireMemberLedger(this.repository, actorUserId, groupId);
+    const limit = options?.limit ?? 20;
     const rows = await this.repository.listSettlements(groupId, {
-      cursorId: decodeCursor(options.cursor),
-      take: options.limit + 1,
+      cursorId: decodeCursor(options?.cursor),
+      take: limit + 1,
     });
-    const hasMore = rows.length > options.limit;
-    const visible = hasMore ? rows.slice(0, options.limit) : rows;
+    const hasMore = rows.length > limit;
+    const visible = hasMore ? rows.slice(0, limit) : rows;
     return {
       data: visible.map(serializeSettlement),
       page: {

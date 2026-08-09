@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AnalyticsService } from "../analytics/analytics-service.js";
 import {
+  AnalyticsCurrencyMismatchError,
   AnalyticsRepository,
   RawAnalyticsData,
 } from "../analytics/analytics-repository.js";
@@ -38,6 +39,7 @@ class InMemoryAnalyticsRepository implements AnalyticsRepository {
       },
     ],
   };
+  public error: Error | null = null;
 
   async findUserGroupIds(_userId: string): Promise<string[]> {
     return this.userGroupIds;
@@ -48,6 +50,7 @@ class InMemoryAnalyticsRepository implements AnalyticsRepository {
     authorizedGroupIds: string[],
     query: AnalyticsQuery
   ): Promise<RawAnalyticsData> {
+    if (this.error) throw this.error;
     if (query.groupId && !authorizedGroupIds.includes(query.groupId)) {
       return {
         personalSpendingMinor: 0n,
@@ -97,5 +100,16 @@ describe("AnalyticsService", () => {
     expect(result.personalSpendingMinor).toBe("0");
     expect(result.totalContributedMinor).toBe("0");
     expect(result.categoryBreakdown).toHaveLength(0);
+  });
+
+  it("fails closed when analytics would combine different currencies", async () => {
+    const repository = new InMemoryAnalyticsRepository();
+    repository.error = new AnalyticsCurrencyMismatchError();
+    const service = new AnalyticsService(repository);
+
+    await expect(service.getAnalytics("user_1", {})).rejects.toMatchObject({
+      statusCode: 422,
+      code: "CURRENCY_MISMATCH",
+    });
   });
 });

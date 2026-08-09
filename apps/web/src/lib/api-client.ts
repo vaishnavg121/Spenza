@@ -1,10 +1,10 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export async function apiFetch<T>(
+async function apiRequest(
   path: string,
   options: RequestInit = {},
   explicitToken?: string | null
-): Promise<T> {
+): Promise<unknown> {
   const url = new URL(path.startsWith("/") ? path : `/${path}`, API_BASE_URL);
 
   // Security check: Only attach Authorization header if targeting configured API origin
@@ -53,5 +53,22 @@ export async function apiFetch<T>(
     throw new Error(errorMsg);
   }
 
-  return body.data as T;
+  return body;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+  explicitToken?: string | null
+): Promise<T> {
+  const body = await apiRequest(path, options, explicitToken);
+  return (body as { data: T }).data;
+}
+
+export async function apiFetchPage<T>(
+  path: string,
+  options: RequestInit = {},
+  explicitToken?: string | null
+): Promise<T> {
+  return apiRequest(path, options, explicitToken) as Promise<T>;
 }

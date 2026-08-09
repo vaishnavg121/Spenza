@@ -32,7 +32,7 @@ export function createActivityRouter(
       const query = ActivityListQuerySchema.parse(req.query);
       const data = await getService().listActivities(actorUserId, query);
       res.setHeader("Cache-Control", "private, no-store");
-      res.json(data);
+      res.json({ data });
     } catch (error) {
       next(error);
     }

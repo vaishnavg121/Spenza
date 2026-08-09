@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { HandCoins } from "lucide-react";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 
 interface SettleUpDialogProps {
   groupId: string;
@@ -23,6 +23,7 @@ interface SettleUpDialogProps {
   debtorName: string;
   creditorName: string;
   amountMinor: string;
+  currency: string;
   isCurrentUserDebtor: boolean;
   isCurrentUserCreditor: boolean;
 }
@@ -33,6 +34,7 @@ export function SettleUpDialog({
   debtorName,
   creditorName,
   amountMinor,
+  currency,
   isCurrentUserDebtor,
   isCurrentUserCreditor,
 }: SettleUpDialogProps) {
@@ -47,7 +49,7 @@ export function SettleUpDialog({
         {
           receiverId: creditorId,
           amountMinor,
-          currency: "USD",
+          currency,
           method: "CASH",
         },
         idempotencyKey
@@ -107,7 +109,7 @@ export function SettleUpDialog({
              <span className="font-semibold">{creditorName}</span>
           </div>
           <div className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-             ${formatMinorUnitToAmount(amountMinor)}
+             {formatMinorUnitCurrency(amountMinor, currency)}
           </div>
         </div>
         <DialogFooter>

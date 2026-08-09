@@ -212,13 +212,14 @@ export class ExpenseService {
   async listExpenses(
     actorUserId: string,
     groupId: string,
-    options: { cursor?: string; limit: number },
+    options?: { cursor?: string; limit?: number },
   ): Promise<ExpensePage> {
     await this.requireActorMembership(this.repository, actorUserId, groupId);
-    const cursorId = decodeCursor(options.cursor);
-    const rows = await this.repository.listGroupExpenses(groupId, { cursorId, take: options.limit + 1 });
-    const hasMore = rows.length > options.limit;
-    const visible = hasMore ? rows.slice(0, options.limit) : rows;
+    const limit = options?.limit ?? 20;
+    const cursorId = decodeCursor(options?.cursor);
+    const rows = await this.repository.listGroupExpenses(groupId, { cursorId, take: limit + 1 });
+    const hasMore = rows.length > limit;
+    const visible = hasMore ? rows.slice(0, limit) : rows;
     return {
       data: visible.map(serializeExpense),
       page: {

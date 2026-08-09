@@ -54,6 +54,18 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
+  // DEVELOPMENT SAFEGUARD: Never intercept or cache requests in dev / localhost
+  if (
+    self.location.hostname === "localhost" ||
+    self.location.hostname === "127.0.0.1" ||
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.pathname.startsWith("/_next/webpack-hmr") ||
+    url.pathname.includes("webpack")
+  ) {
+    return;
+  }
+
   // 1. NON-GET requests (mutations: POST, PUT, DELETE, PATCH): NEVER cache or intercept
   if (request.method !== "GET") {
     return;

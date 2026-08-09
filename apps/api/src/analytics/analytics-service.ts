@@ -3,14 +3,30 @@ import {
   type AnalyticsQuery,
   type AnalyticsResponse,
 } from "@spenza/contracts";
-import { type AnalyticsRepository } from "./analytics-repository.js";
+import { UnprocessableEntityError } from "../errors/app-error.js";
+import {
+  AnalyticsCurrencyMismatchError,
+  type AnalyticsRepository,
+  type RawAnalyticsData,
+} from "./analytics-repository.js";
 
 export class AnalyticsService {
   constructor(private readonly repository: AnalyticsRepository) {}
 
   async getAnalytics(actorUserId: string, query: AnalyticsQuery): Promise<AnalyticsResponse> {
     const authorizedGroupIds = await this.repository.findUserGroupIds(actorUserId);
-    const raw = await this.repository.getAnalyticsData(actorUserId, authorizedGroupIds, query);
+    let raw: RawAnalyticsData;
+    try {
+      raw = await this.repository.getAnalyticsData(actorUserId, authorizedGroupIds, query);
+    } catch (error) {
+      if (error instanceof AnalyticsCurrencyMismatchError) {
+        throw new UnprocessableEntityError(
+          "Analytics cannot combine groups with different currencies",
+          "CURRENCY_MISMATCH",
+        );
+      }
+      throw error;
+    }
 
     const categoryBreakdown = raw.categoryBreakdown.map((cat) => {
       const percentageBps = raw.personalSpendingMinor > 0n

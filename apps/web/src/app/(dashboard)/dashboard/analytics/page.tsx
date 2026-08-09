@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchAnalyticsApi } from "@/lib/api-analytics";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
-              ${formatMinorUnitToAmount(data.personalSpendingMinor)}
+              {formatMinorUnitCurrency(data.personalSpendingMinor, data.currency)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Your assigned expense allocations</p>
           </CardContent>
@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-3xl">
-              ${formatMinorUnitToAmount(data.totalContributedMinor)}
+              {formatMinorUnitCurrency(data.totalContributedMinor, data.currency)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Upfront payments made by you</p>
           </CardContent>
@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
-              ${formatMinorUnitToAmount(data.totalGroupExpensesMinor)}
+              {formatMinorUnitCurrency(data.totalGroupExpensesMinor, data.currency)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Total volume across all your groups</p>
           </CardContent>
@@ -113,7 +113,16 @@ export default function AnalyticsPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyChartData}>
                 <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => formatMinorUnitCurrency(
+                    String(Math.round(Number(value) * 100)),
+                    data.currency,
+                  )}
+                />
                 <Tooltip cursor={{ fill: "rgba(0,0,0,0.1)" }} contentStyle={{ borderRadius: "8px", border: "none" }} />
                 <Legend />
                 <Bar dataKey="Personal" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -138,7 +147,7 @@ export default function AnalyticsPage() {
                 <div key={cat.categoryId || "uncategorized"} className="space-y-1">
                   <div className="flex items-center justify-between text-sm font-medium">
                     <span>{cat.categoryName}</span>
-                    <span>${formatMinorUnitToAmount(cat.totalMinor)}</span>
+                    <span>{formatMinorUnitCurrency(cat.totalMinor, data.currency)}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                     <div
@@ -166,11 +175,11 @@ export default function AnalyticsPage() {
                   <div>
                     <p className="font-medium text-sm">{g.groupName}</p>
                     <p className="text-xs text-muted-foreground">
-                      Total group volume: ${formatMinorUnitToAmount(g.totalExpensesMinor)}
+                      Total group volume: {formatMinorUnitCurrency(g.totalExpensesMinor, data.currency)}
                     </p>
                   </div>
                   <div className="text-right font-bold text-sm text-foreground">
-                    ${formatMinorUnitToAmount(g.personalSpendingMinor)}
+                    {formatMinorUnitCurrency(g.personalSpendingMinor, data.currency)}
                   </div>
                 </div>
               ))

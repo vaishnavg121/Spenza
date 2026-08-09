@@ -110,6 +110,7 @@ export class PrismaSearchRepository implements SearchRepository {
     const records = await this.prisma.expense.findMany({
       where,
       include: {
+        group: { select: { currency: true } },
         payments: { select: { userId: true, contributionMinor: true, paymentOrder: true } },
         splits: { select: { userId: true, allocationMinor: true, allocationOrder: true, percentageBps: true, shareWeight: true, amountOwed: true } },
       },
@@ -142,7 +143,7 @@ export class PrismaSearchRepository implements SearchRepository {
         description: record.description,
         categoryId: record.categoryId,
         totalMinor,
-        currency: record.currency,
+        currency: record.totalMinor === null ? record.group!.currency : record.currency,
         splitType: record.splitType as ExpenseRecord["splitType"],
         version: record.version,
         date: record.date,

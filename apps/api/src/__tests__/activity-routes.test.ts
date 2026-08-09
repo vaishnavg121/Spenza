@@ -76,7 +76,7 @@ describe("GET /v1/activity", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, no-store");
-    expect(response.body).toEqual(mockActivityPage);
+    expect(response.body).toEqual({ data: mockActivityPage });
     expect(listActivities).toHaveBeenCalledWith("user_1", { limit: 20 });
   });
 

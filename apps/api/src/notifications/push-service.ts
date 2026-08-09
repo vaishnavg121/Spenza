@@ -1,12 +1,28 @@
 import webpush from "web-push";
 import { PrismaClient } from "@prisma/client";
+import { logger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
-// Set VAPID details (mocked or loaded from env)
-const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBtc3sOEHhK2yJ1v31Qk8lMvw";
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || "8_Q_wXF-kXlF1Z2a_G2f91RjJ_8D6Vq4G8L-QpBvK-E";
-const vapidSubject = process.env.VAPID_SUBJECT || "mailto:test@spenza.local";
+function setupVapid(): boolean {
+  const isProduction = env.NODE_ENV === "production";
+  const vapidPublicKey = env.VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY;
+  const vapidPrivateKey = env.VAPID_PRIVATE_KEY || process.env.VAPID_PRIVATE_KEY;
+  const vapidSubject = env.VAPID_SUBJECT || process.env.VAPID_SUBJECT || "mailto:test@spenza.local";
 
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+  if (vapidPublicKey && vapidPrivateKey) {
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    return true;
+  }
+
+  if (isProduction) {
+    throw new Error("VAPID keys (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY) are required in production.");
+  }
+
+  logger.info("Web Push: disabled in local development");
+  return false;
+}
+
+const isWebPushEnabled = setupVapid();
 
 export interface PushService {
   sendPushNotification(userId: string, payload: { title: string; body: string; url?: string }): Promise<void>;
@@ -17,6 +33,11 @@ export class DefaultPushService implements PushService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async sendPushNotification(userId: string, payload: { title: string; body: string; url?: string }): Promise<void> {
+    if (!isWebPushEnabled) {
+      logger.debug({ userId }, "Skipping push notification: Web Push is disabled");
+      return;
+    }
+
     const subscriptions = await this.prisma.pushSubscription.findMany({
       where: { userId },
     });
@@ -35,7 +56,7 @@ export class DefaultPushService implements PushService {
           // Subscription has expired or is no longer valid
           await this.prisma.pushSubscription.delete({ where: { id: sub.id } });
         } else {
-          console.error("Failed to send push notification:", error);
+          logger.error({ error }, "Failed to send push notification");
         }
       }
     }
@@ -63,7 +84,7 @@ export class DefaultPushService implements PushService {
              }
            });
            
-           // Send Web Push
+           // Send Web Push if enabled
            await this.sendPushNotification(payload.userId, {
              title: payload.title,
              body: payload.body,

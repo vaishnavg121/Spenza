@@ -7,7 +7,7 @@ import { groupService as defaultGroupService } from "../groups/group-composition
 import { GroupService } from "../groups/group-service.js";
 import { UnauthorizedError, ConflictError, ValidationError } from "../errors/app-error.js";
 
-async function resolveInternalUserId(req: Request): Promise<string> {
+async function defaultActorResolver(req: Request): Promise<string> {
   if (!req.actor?.clerkSubject) {
     throw new UnauthorizedError("Authentication required");
   }
@@ -19,13 +19,13 @@ async function resolveInternalUserId(req: Request): Promise<string> {
   return resolved.user.id;
 }
 
-export function createGroupRouter(groupService: GroupService = defaultGroupService): Router {
+export function createGroupRouter(groupService: GroupService = defaultGroupService, resolveActor = defaultActorResolver): Router {
   const router = Router();
 
   // POST /v1/groups - Create a group
   router.post("/v1/groups", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const parsed = CreateGroupSchema.safeParse(req.body);
       if (!parsed.success) {
         return next(
@@ -49,7 +49,7 @@ export function createGroupRouter(groupService: GroupService = defaultGroupServi
   // GET /v1/groups - List user's groups
   router.get("/v1/groups", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const groups = await groupService.getUserGroups(actorUserId);
       res.status(200).json({ data: groups });
     } catch (error) {
@@ -60,7 +60,7 @@ export function createGroupRouter(groupService: GroupService = defaultGroupServi
   // GET /v1/groups/:groupId - Get group details
   router.get("/v1/groups/:groupId", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const groupId = String(req.params.groupId);
       const group = await groupService.getGroupById(actorUserId, groupId);
       res.status(200).json({ data: group });
@@ -72,7 +72,7 @@ export function createGroupRouter(groupService: GroupService = defaultGroupServi
   // PATCH /v1/groups/:groupId - Update group details
   router.patch("/v1/groups/:groupId", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const groupId = String(req.params.groupId);
       const parsed = UpdateGroupSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -94,10 +94,10 @@ export function createGroupRouter(groupService: GroupService = defaultGroupServi
     }
   });
 
-  // POST /v1/groups/:groupId/members - Add member by email
+  // POST /v1/groups/:groupId/members - Add an accepted friend by internal user ID
   router.post("/v1/groups/:groupId/members", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const groupId = String(req.params.groupId);
       const parsed = AddGroupMemberSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -122,7 +122,7 @@ export function createGroupRouter(groupService: GroupService = defaultGroupServi
   // DELETE /v1/groups/:groupId/members/:userId - Remove member or leave group
   router.delete("/v1/groups/:groupId/members/:userId", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const groupId = String(req.params.groupId);
       const userId = String(req.params.userId);
       await groupService.removeGroupMember(actorUserId, groupId, userId);
@@ -135,7 +135,7 @@ export function createGroupRouter(groupService: GroupService = defaultGroupServi
   // POST /v1/groups/:groupId/leave - Leave group endpoint
   router.post("/v1/groups/:groupId/leave", requireAuthenticatedActor, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorUserId = await resolveInternalUserId(req);
+      const actorUserId = await resolveActor(req);
       const groupId = String(req.params.groupId);
       await groupService.removeGroupMember(actorUserId, groupId, actorUserId);
       res.status(204).send();

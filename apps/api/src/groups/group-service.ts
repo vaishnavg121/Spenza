@@ -1,5 +1,5 @@
 import { CreateGroupInput, UpdateGroupInput, AddGroupMemberInput, GroupResponse } from "@spenza/contracts";
-import { GroupRepository, GroupWithMembers } from "./group-repository.js";
+import { DuplicateGroupMemberError, GroupRepository, GroupWithMembers } from "./group-repository.js";
 import { NotFoundError, ForbiddenError, ConflictError } from "../errors/app-error.js";
 
 export class GroupService {
@@ -64,19 +64,28 @@ export class GroupService {
       throw new ForbiddenError("Only group administrators can add new members");
     }
 
-    // Find target user by email
-    const targetUser = await this.repository.findUserByEmail(input.email);
-    if (!targetUser) {
-      throw new NotFoundError(`No registered user found with email ${input.email}`);
-    }
-
-    // Check if user is already a member
-    const existingMember = group.members.find((m) => m.userId === targetUser.id);
+    // Reject self and existing members before resolving friendship eligibility.
+    const existingMember = group.members.find((m) => m.userId === input.userId);
     if (existingMember) {
-      throw new ConflictError("User is already a member of this group");
+      throw new ConflictError("User is already a member of this group", "GROUP_MEMBER_ALREADY_EXISTS");
     }
 
-    await this.repository.addMember(groupId, targetUser.id, input.role || "MEMBER");
+    const targetUser = await this.repository.findAcceptedFriend(actorUserId, input.userId);
+    if (!targetUser) {
+      throw new ForbiddenError(
+        "Only accepted friends can be added to a group",
+        "ACCEPTED_FRIEND_REQUIRED",
+      );
+    }
+
+    try {
+      await this.repository.addMember(groupId, targetUser.id, "MEMBER");
+    } catch (error) {
+      if (error instanceof DuplicateGroupMemberError) {
+        throw new ConflictError("User is already a member of this group", "GROUP_MEMBER_ALREADY_EXISTS");
+      }
+      throw error;
+    }
     await this.repository.createActivity(targetUser.id, groupId, "USER_JOINED", { name: targetUser.name });
 
     const updated = await this.repository.findGroupById(groupId);

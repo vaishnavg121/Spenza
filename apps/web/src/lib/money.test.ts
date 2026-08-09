@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAmountToMinorUnit, formatMinorUnitToAmount } from "./money";
+import { parseAmountToMinorUnit, formatMinorUnitCurrency, formatMinorUnitToAmount } from "./money";
 
 describe("money utils", () => {
   describe("parseAmountToMinorUnit", () => {
@@ -39,6 +39,16 @@ describe("money utils", () => {
       expect(formatMinorUnitToAmount("1")).toBe("0.01");
       expect(formatMinorUnitToAmount("1000")).toBe("10.00");
       expect(formatMinorUnitToAmount("0")).toBe("0.00");
+    });
+  });
+
+  describe("formatMinorUnitCurrency", () => {
+    it("uses the INR symbol for INR minor units", () => {
+      expect(formatMinorUnitCurrency("12345", "INR")).toBe("₹123.45");
+    });
+
+    it("labels currencies without a configured symbol", () => {
+      expect(formatMinorUnitCurrency("12345", "JPY")).toBe("JPY 123.45");
     });
   });
 });

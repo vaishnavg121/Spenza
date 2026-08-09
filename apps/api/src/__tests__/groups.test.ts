@@ -4,6 +4,13 @@ import request from "supertest";
 import { createGroupRouter } from "../routes/groups.js";
 import { GroupService } from "../groups/group-service.js";
 import { ForbiddenError, NotFoundError, ConflictError } from "../errors/app-error.js";
+import {
+  DuplicateGroupMemberError,
+  GroupRepository,
+  GroupWithMembers,
+} from "../groups/group-repository.js";
+import type { Activity, GroupMember, GroupRole } from "@prisma/client";
+import type { CreateGroupInput, UpdateGroupInput } from "@spenza/contracts";
 
 const { repository, service } = vi.hoisted(() => ({
   repository: {
@@ -15,7 +22,7 @@ const { repository, service } = vi.hoisted(() => ({
     addMember: vi.fn(),
     removeMember: vi.fn(),
     countAdmins: vi.fn(),
-    findUserByEmail: vi.fn(),
+    findAcceptedFriend: vi.fn(),
     createActivity: vi.fn(),
   },
   service: {
@@ -175,18 +182,26 @@ describe("Group & Membership API Endpoints", () => {
     expect(res.status).toBe(403);
   });
 
-  it("POST /v1/groups/:groupId/members adds a member by email", async () => {
+  it("POST /v1/groups/:groupId/members adds an accepted friend by internal user ID", async () => {
     vi.mocked(service.addGroupMember).mockResolvedValue(mockGroupResponse);
 
     const res = await request(app("clerk_user_1"))
       .post("/v1/groups/grp_123/members")
-      .send({ email: "friend@example.com", role: "MEMBER" });
+      .send({ userId: "friend_1" });
 
     expect(res.status).toBe(200);
     expect(service.addGroupMember).toHaveBeenCalledWith("internal_clerk_user_1", "grp_123", {
-      email: "friend@example.com",
-      role: "MEMBER",
+      userId: "friend_1",
     });
+  });
+
+  it("POST /v1/groups/:groupId/members rejects the legacy email and client role fields", async () => {
+    const res = await request(app("clerk_user_1"))
+      .post("/v1/groups/grp_123/members")
+      .send({ email: "friend@example.com", role: "ADMIN" });
+
+    expect(res.status).toBe(400);
+    expect(service.addGroupMember).not.toHaveBeenCalled();
   });
 
   it("DELETE /v1/groups/:groupId/members/:userId allows member removal", async () => {
@@ -213,5 +228,164 @@ describe("Group & Membership API Endpoints", () => {
     const res = await request(app("clerk_user_1")).post("/v1/groups/grp_123/leave");
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe("CONFLICT");
+  });
+});
+
+const actorId = "user_admin";
+const friendId = "user_friend";
+
+function member(userId: string, role: GroupRole): GroupWithMembers["members"][number] {
+  return {
+    id: `member_${userId}`,
+    groupId: "group_1",
+    userId,
+    role,
+    isFavorite: false,
+    createdAt: new Date("2026-08-09T00:00:00.000Z"),
+    user: {
+      id: userId,
+      name: userId === actorId ? "Admin" : "Friend",
+      email: `${userId}@example.com`,
+      image: null,
+    },
+  };
+}
+
+function groupWithActor(role: GroupRole = "ADMIN"): GroupWithMembers {
+  return {
+    id: "group_1",
+    name: "Member Flow Test",
+    description: null,
+    imageUrl: null,
+    currency: "INR",
+    inviteLink: null,
+    isArchived: false,
+    createdAt: new Date("2026-08-09T00:00:00.000Z"),
+    updatedAt: new Date("2026-08-09T00:00:00.000Z"),
+    members: [member(actorId, role)],
+    _count: { expenses: 0 },
+  };
+}
+
+class MembershipTestRepository implements GroupRepository {
+  group = groupWithActor();
+  acceptedFriend: { id: string; name: string; email: string; image: string | null } | null = {
+    id: friendId,
+    name: "Friend",
+    email: "friend@example.com",
+    image: null,
+  };
+  duplicateOnAdd = false;
+
+  async createGroup(_userId: string, _data: CreateGroupInput): Promise<GroupWithMembers> {
+    throw new Error("Not used in membership tests");
+  }
+
+  async findGroupById(groupId: string): Promise<GroupWithMembers | null> {
+    return groupId === this.group.id ? this.group : null;
+  }
+
+  async findGroupsByUserId(_userId: string): Promise<GroupWithMembers[]> {
+    return [this.group];
+  }
+
+  async updateGroup(_groupId: string, _data: UpdateGroupInput): Promise<GroupWithMembers> {
+    throw new Error("Not used in membership tests");
+  }
+
+  async findMember(groupId: string, userId: string): Promise<GroupMember | null> {
+    return this.group.members.find((groupMember) => groupMember.groupId === groupId && groupMember.userId === userId) ?? null;
+  }
+
+  async addMember(groupId: string, userId: string, role: GroupRole): Promise<GroupMember> {
+    if (this.duplicateOnAdd) throw new DuplicateGroupMemberError();
+    const created = member(userId, role);
+    this.group.members.push(created);
+    return created;
+  }
+
+  async removeMember(_groupId: string, _userId: string): Promise<void> {}
+
+  async countAdmins(_groupId: string): Promise<number> {
+    return this.group.members.filter((groupMember) => groupMember.role === "ADMIN").length;
+  }
+
+  async findAcceptedFriend(userId: string, targetUserId: string) {
+    if (userId !== actorId || targetUserId !== this.acceptedFriend?.id) return null;
+    return this.acceptedFriend;
+  }
+
+  async createActivity(
+    userId: string,
+    groupId: string,
+    action: "GROUP_CREATED" | "USER_JOINED",
+    _details?: Record<string, unknown>,
+  ): Promise<Activity> {
+    return {
+      id: "activity_1",
+      userId,
+      groupId,
+      expenseId: null,
+      settlementId: null,
+      action,
+      details: null,
+      createdAt: new Date("2026-08-09T00:00:00.000Z"),
+    };
+  }
+}
+
+describe("GroupService accepted-friend membership rules", () => {
+  it("allows an admin to add an accepted friend and returns the new member", async () => {
+    const membershipRepository = new MembershipTestRepository();
+    const groupService = new GroupService(membershipRepository);
+
+    const result = await groupService.addGroupMember(actorId, "group_1", { userId: friendId });
+
+    expect(result.members.map((groupMember) => groupMember.userId)).toEqual([actorId, friendId]);
+    expect(result.members[1].role).toBe("MEMBER");
+  });
+
+  it("rejects a registered user who is not an accepted friend", async () => {
+    const membershipRepository = new MembershipTestRepository();
+    membershipRepository.acceptedFriend = null;
+    const groupService = new GroupService(membershipRepository);
+
+    await expect(groupService.addGroupMember(actorId, "group_1", { userId: "random_user" }))
+      .rejects.toMatchObject({ statusCode: 403, code: "ACCEPTED_FRIEND_REQUIRED" });
+  });
+
+  it("rejects an existing member cleanly", async () => {
+    const membershipRepository = new MembershipTestRepository();
+    membershipRepository.group.members.push(member(friendId, "MEMBER"));
+    const groupService = new GroupService(membershipRepository);
+
+    await expect(groupService.addGroupMember(actorId, "group_1", { userId: friendId }))
+      .rejects.toMatchObject({ statusCode: 409, code: "GROUP_MEMBER_ALREADY_EXISTS" });
+  });
+
+  it("rejects adding the authenticated admin as a member again", async () => {
+    const membershipRepository = new MembershipTestRepository();
+    const groupService = new GroupService(membershipRepository);
+
+    await expect(groupService.addGroupMember(actorId, "group_1", { userId: actorId }))
+      .rejects.toMatchObject({ statusCode: 409, code: "GROUP_MEMBER_ALREADY_EXISTS" });
+  });
+
+  it("maps a concurrent unique membership race to the duplicate-member conflict", async () => {
+    const membershipRepository = new MembershipTestRepository();
+    membershipRepository.duplicateOnAdd = true;
+    const groupService = new GroupService(membershipRepository);
+
+    await expect(groupService.addGroupMember(actorId, "group_1", { userId: friendId }))
+      .rejects.toMatchObject({ statusCode: 409, code: "GROUP_MEMBER_ALREADY_EXISTS" });
+  });
+
+  it("rejects a non-admin group member", async () => {
+    const membershipRepository = new MembershipTestRepository();
+    membershipRepository.group = groupWithActor("MEMBER");
+    const groupService = new GroupService(membershipRepository);
+
+    await expect(groupService.addGroupMember(actorId, "group_1", { userId: friendId }))
+      .rejects.toMatchObject({ statusCode: 403, code: "FORBIDDEN" });
   });
 });

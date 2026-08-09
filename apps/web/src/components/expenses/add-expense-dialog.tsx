@@ -5,7 +5,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createExpenseSchema } from "@/lib/expense-schema";
+import { createExpenseApiFormSchema } from "@/lib/expense-schema";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,15 +31,19 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Receipt } from "lucide-react";
 import { createExpenseApi } from "@/lib/api-expenses";
-import { parseAmountToMinorUnit } from "@/lib/money";
-import type { CreateExpenseInput, ExpenseSplitInput } from "@spenza/contracts";
+import {
+  buildExpenseInput,
+  calculateExactTotalMinor,
+  calculatePercentageTotalBps,
+  createInitialExpenseSplits,
+} from "@/lib/expense-input";
+import { formatMinorUnitToAmount, parseAmountToMinorUnit } from "@/lib/money";
 
 type Member = {
   id: string;
@@ -51,30 +55,33 @@ interface AddExpenseDialogProps {
   groupId: string;
   members: Member[];
   currentUserId: string;
+  currency?: string;
 }
 
-export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpenseDialogProps) {
+function formatBasisPoints(basisPoints: number): string {
+  const whole = Math.floor(basisPoints / 100);
+  const fraction = (basisPoints % 100).toString().padStart(2, "0");
+  return `${whole}.${fraction}`;
+}
+
+export function AddExpenseDialog({ groupId, members, currentUserId, currency = "USD" }: AddExpenseDialogProps) {
   const [open, setOpen] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const queryClient = useQueryClient();
 
   const form = useForm<
-    z.input<typeof createExpenseSchema>,
+    z.input<typeof createExpenseApiFormSchema>,
     undefined,
-    z.output<typeof createExpenseSchema>
+    z.output<typeof createExpenseApiFormSchema>
   >({
-    resolver: zodResolver(createExpenseSchema),
+    resolver: zodResolver(createExpenseApiFormSchema),
     defaultValues: {
       groupId,
       title: "",
-      amount: 0,
+      amount: "",
       payerId: currentUserId,
       splitType: "EQUAL",
-      splits: members.map((m) => ({
-        userId: m.id,
-        value: 0,
-        isSelected: true,
-      })),
+      splits: createInitialExpenseSplits(members.map((member) => member.id), "EQUAL"),
     },
   });
 
@@ -85,76 +92,17 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
 
   const { setValue } = form;
   const splitType = useWatch({ control: form.control, name: "splitType" });
-  const amount = useWatch({ control: form.control, name: "amount" }) ?? 0;
+  const amount = useWatch({ control: form.control, name: "amount" }) ?? "";
   const splits = useWatch({ control: form.control, name: "splits" }) ?? [];
 
   // Reset split values when changing split type
   useEffect(() => {
-    if (splitType === "EQUAL") {
-      // Logic is handled in backend, just keep selections
-    } else if (splitType === "EXACT") {
-       // Reset values to 0
-       const newSplits = members.map(m => ({ userId: m.id, value: 0, isSelected: true }));
-       setValue("splits", newSplits);
-    } else if (splitType === "PERCENTAGE") {
-        const equalPerc = Math.floor(100 / members.length);
-        const newSplits = members.map((m, i) => ({ 
-            userId: m.id, 
-            value: i === 0 ? 100 - (equalPerc * (members.length - 1)) : equalPerc, 
-            isSelected: true 
-        }));
-        setValue("splits", newSplits);
-    } else if (splitType === "SHARES") {
-        const newSplits = members.map(m => ({ userId: m.id, value: 1, isSelected: true }));
-        setValue("splits", newSplits);
-    }
+    setValue("splits", createInitialExpenseSplits(members.map((member) => member.id), splitType));
   }, [members, setValue, splitType]);
 
   const mutation = useMutation({
-    mutationFn: async (values: z.output<typeof createExpenseSchema>) => {
-      const totalMinor = parseAmountToMinorUnit(values.amount.toString(), 2);
-      if (!totalMinor || totalMinor === "0") {
-        throw new Error("Invalid expense amount.");
-      }
-
-      let split: ExpenseSplitInput;
-      if (values.splitType === "EQUAL") {
-        const participants = values.splits.filter(s => s.isSelected).map(s => ({ userId: s.userId }));
-        if (participants.length === 0) throw new Error("Select at least one participant.");
-        split = { type: "EQUAL", participants };
-      } else if (values.splitType === "EXACT") {
-        const participants = values.splits
-          .filter(s => s.value > 0)
-          .map(s => {
-            const amountMinor = parseAmountToMinorUnit(s.value.toString(), 2);
-            if (!amountMinor) throw new Error(`Invalid exact amount for user.`);
-            return { userId: s.userId, amountMinor };
-          });
-        if (participants.length === 0) throw new Error("Assign at least one exact amount.");
-        split = { type: "EXACT", participants };
-      } else if (values.splitType === "PERCENTAGE") {
-        const participants = values.splits
-          .filter(s => s.value > 0)
-          .map(s => ({ userId: s.userId, percentageBps: Math.round(s.value * 100) }));
-        if (participants.length === 0) throw new Error("Assign at least one percentage.");
-        split = { type: "PERCENTAGE", participants };
-      } else if (values.splitType === "SHARES") {
-        const participants = values.splits
-          .filter(s => s.value > 0)
-          .map(s => ({ userId: s.userId, shares: Math.round(s.value) }));
-        if (participants.length === 0) throw new Error("Assign at least one share.");
-        split = { type: "SHARES", participants };
-      } else {
-        throw new Error("Unsupported split type.");
-      }
-
-      const payload: CreateExpenseInput = {
-        title: values.title,
-        totalMinor,
-        currency: "USD",
-        payers: [{ userId: values.payerId, amountMinor: totalMinor }],
-        split,
-      };
+    mutationFn: async (values: z.output<typeof createExpenseApiFormSchema>) => {
+      const payload = buildExpenseInput(values, currency, members.map((member) => member.id));
 
       return createExpenseApi(values.groupId, payload, idempotencyKey);
     },
@@ -166,10 +114,10 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
       form.reset({
           groupId,
           title: "",
-          amount: 0,
+          amount: "",
           payerId: currentUserId,
           splitType: "EQUAL",
-          splits: members.map((m) => ({ userId: m.id, value: 0, isSelected: true }))
+          splits: createInitialExpenseSplits(members.map((member) => member.id), "EQUAL"),
       });
       setIdempotencyKey(crypto.randomUUID());
     },
@@ -178,28 +126,32 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
     },
   });
 
-  function onSubmit(values: z.output<typeof createExpenseSchema>) {
-    if (values.splitType === "EXACT") {
-       const total = values.splits.reduce((sum, s) => sum + s.value, 0);
-       if (Math.abs(total - values.amount) > 0.01) {
-           toast.error(`Amounts must add up to ${values.amount}. Currently: ${total}`);
-           return;
-       }
-    }
-    if (values.splitType === "PERCENTAGE") {
-        const total = values.splits.reduce((sum, s) => sum + s.value, 0);
-        if (Math.abs(total - 100) > 0.01) {
-            toast.error(`Percentages must add up to exactly 100%. Currently: ${total}%`);
-            return;
-        }
-    }
+  function onSubmit(values: z.output<typeof createExpenseApiFormSchema>) {
     mutation.mutate(values);
   }
 
   const getMemberDetails = (userId: string) => members.find((m) => m.id === userId);
+  const exactTotalMinor = calculateExactTotalMinor(splits);
+  const expenseTotalMinor = parseAmountToMinorUnit(amount, 2);
+  const percentageTotalBps = calculatePercentageTotalBps(splits);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      form.reset({
+        groupId,
+        title: "",
+        amount: "",
+        payerId: currentUserId,
+        splitType: "EQUAL",
+        splits: createInitialExpenseSplits(members.map((member) => member.id), "EQUAL"),
+      });
+      setIdempotencyKey(crypto.randomUUID());
+    }
+    setOpen(nextOpen);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="w-full sm:w-auto">
           <Receipt className="mr-2 h-4 w-4" />
@@ -237,13 +189,11 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                      <FormItem>
                         <FormLabel>Amount</FormLabel>
                         <FormControl>
-                        <Input 
-                            type="number" 
-                            step="0.01" 
-                            min="0"
-                            placeholder="0.00" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+                        <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            {...field}
                         />
                         </FormControl>
                         <FormMessage />
@@ -258,10 +208,22 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Paid By</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    items={Object.fromEntries(
+                      members.map((member) => [
+                        member.id,
+                        `${member.name}${member.id === currentUserId ? " (You)" : ""}`,
+                      ]),
+                    )}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select who paid" />
+                        <span className="flex flex-1 text-left">
+                          {getMemberDetails(field.value)?.name ?? "Select who paid"}
+                          {field.value === currentUserId ? " (You)" : ""}
+                        </span>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -311,91 +273,96 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                            <span className="truncate text-sm font-medium">{member.name}</span>
                         </div>
                         
-                        {splitType === "EQUAL" && (
+                        <div className="flex items-center gap-3">
                            <FormField
                               control={form.control}
                               name={`splits.${index}.isSelected`}
                               render={({ field: checkboxField }) => (
                                  <FormItem className="flex items-center space-x-2 space-y-0">
                                     <FormControl>
-                                       <Checkbox 
-                                          checked={checkboxField.value} 
-                                          onCheckedChange={checkboxField.onChange} 
+                                       <Checkbox
+                                          checked={checkboxField.value}
+                                          onCheckedChange={checkboxField.onChange}
+                                          aria-label={`Include ${member.name} in the split`}
                                        />
                                     </FormControl>
                                  </FormItem>
                               )}
                            />
-                        )}
 
-                        {splitType === "EXACT" && (
-                           <FormField
-                              control={form.control}
-                              name={`splits.${index}.value`}
-                              render={({ field: inputField }) => (
-                                 <FormItem>
-                                    <FormControl>
-                                       <div className="flex items-center">
-                                          <span className="text-sm text-muted-foreground mr-2">$</span>
-                                          <Input 
-                                             type="number" 
-                                             step="0.01" 
-                                             className="h-10 w-24 text-right"
-                                             {...inputField}
-                                             onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)} 
-                                          />
-                                       </div>
-                                    </FormControl>
-                                 </FormItem>
-                              )}
-                           />
-                        )}
+                           {splitType === "EXACT" && (
+                              <FormField
+                                 control={form.control}
+                                 name={`splits.${index}.value`}
+                                 render={({ field: inputField }) => (
+                                    <FormItem>
+                                       <FormControl>
+                                          <div className="flex items-center">
+                                             <span className="mr-2 text-sm text-muted-foreground">{currency}</span>
+                                             <Input
+                                                type="text"
+                                                inputMode="decimal"
+                                                className="h-10 w-24 text-right"
+                                                disabled={!splits[index]?.isSelected}
+                                                aria-label={`${member.name} exact amount`}
+                                                {...inputField}
+                                             />
+                                          </div>
+                                       </FormControl>
+                                    </FormItem>
+                                 )}
+                              />
+                           )}
 
-                        {splitType === "PERCENTAGE" && (
-                           <FormField
-                              control={form.control}
-                              name={`splits.${index}.value`}
-                              render={({ field: inputField }) => (
-                                 <FormItem>
-                                    <FormControl>
-                                       <div className="flex items-center">
-                                          <Input 
-                                             type="number" 
-                                             step="1" 
-                                             className="h-10 w-20 text-right"
-                                             {...inputField}
-                                             onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)} 
-                                          />
-                                          <span className="text-sm text-muted-foreground ml-2">%</span>
-                                       </div>
-                                    </FormControl>
-                                 </FormItem>
-                              )}
-                           />
-                        )}
+                           {splitType === "PERCENTAGE" && (
+                              <FormField
+                                 control={form.control}
+                                 name={`splits.${index}.value`}
+                                 render={({ field: inputField }) => (
+                                    <FormItem>
+                                       <FormControl>
+                                          <div className="flex items-center">
+                                             <Input
+                                                type="text"
+                                                inputMode="decimal"
+                                                className="h-10 w-20 text-right"
+                                                disabled={!splits[index]?.isSelected}
+                                                aria-label={`${member.name} percentage`}
+                                                {...inputField}
+                                             />
+                                             <span className="ml-2 text-sm text-muted-foreground">%</span>
+                                          </div>
+                                       </FormControl>
+                                    </FormItem>
+                                 )}
+                              />
+                           )}
 
-                        {splitType === "SHARES" && (
-                           <FormField
-                              control={form.control}
-                              name={`splits.${index}.value`}
-                              render={({ field: inputField }) => (
-                                 <FormItem>
-                                    <FormControl>
-                                       <div className="flex items-center">
-                                          <Input 
-                                             type="number" 
-                                             step="1" 
-                                             className="h-10 w-20 text-right"
-                                             {...inputField}
-                                             onChange={(e) => inputField.onChange(parseFloat(e.target.value) || 0)} 
-                                          />
-                                          <span className="text-sm text-muted-foreground ml-2 text-xs">share(s)</span>
-                                       </div>
-                                    </FormControl>
-                                 </FormItem>
-                              )}
-                           />
-                        )}
+                           {splitType === "SHARES" && (
+                              <FormField
+                                 control={form.control}
+                                 name={`splits.${index}.value`}
+                                 render={({ field: inputField }) => (
+                                    <FormItem>
+                                       <FormControl>
+                                          <div className="flex items-center">
+                                             <Input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[1-9][0-9]*"
+                                                className="h-10 w-20 text-right"
+                                                disabled={!splits[index]?.isSelected}
+                                                aria-label={`${member.name} shares`}
+                                                {...inputField}
+                                             />
+                                             <span className="ml-2 text-xs text-muted-foreground">share(s)</span>
+                                          </div>
+                                       </FormControl>
+                                    </FormItem>
+                                 )}
+                              />
+                           )}
+                        </div>
                      </div>
                   );
                })}
@@ -404,16 +371,16 @@ export function AddExpenseDialog({ groupId, members, currentUserId }: AddExpense
                {splitType === "EXACT" && (
                   <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm font-medium">
                      <span>Total Selected:</span>
-                     <span className={Math.abs(splits.reduce((a,b) => a + b.value, 0) - amount) > 0.01 ? "text-destructive" : "text-emerald-500"}>
-                        ${splits.reduce((a,b) => a + b.value, 0).toFixed(2)} / ${amount.toFixed(2)}
+                     <span className={exactTotalMinor !== null && exactTotalMinor === expenseTotalMinor ? "text-emerald-500" : "text-destructive"}>
+                        {currency} {exactTotalMinor === null ? "Invalid" : formatMinorUnitToAmount(exactTotalMinor)} / {currency} {expenseTotalMinor === null ? "Invalid" : formatMinorUnitToAmount(expenseTotalMinor)}
                      </span>
                   </div>
                )}
                {splitType === "PERCENTAGE" && (
                   <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm font-medium">
                      <span>Total Selected:</span>
-                     <span className={Math.abs(splits.reduce((a,b) => a + b.value, 0) - 100) > 0.01 ? "text-destructive" : "text-emerald-500"}>
-                        {splits.reduce((a,b) => a + b.value, 0).toFixed(0)}% / 100%
+                     <span className={percentageTotalBps === 10_000 ? "text-emerald-500" : "text-destructive"}>
+                        {percentageTotalBps === null ? "Invalid" : formatBasisPoints(percentageTotalBps)}% / 100.00%
                      </span>
                   </div>
                )}

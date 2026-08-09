@@ -15,7 +15,7 @@ No migrations, backfills, or remote database operations were executed.
 
 New strict Zod contracts were added in `@spenza/contracts`:
 
-- `packages/contracts/src/dashboard.ts`: Defines `DashboardBalancesSchema`, `SpendingBarDataSchema`, `DashboardResponseSchema`.
+- `packages/contracts/src/dashboard.ts`: Defines `DashboardBalancesSchema`, per-currency `DashboardCurrencySummarySchema`, `SpendingBarDataSchema`, and `DashboardResponseSchema`.
 - `packages/contracts/src/activity.ts`: Defines `ActivityItemSchema`, `ActivityListQuerySchema`, `ActivityPageSchema`.
 
 All monetary amounts in contract boundaries are transmitted as canonical minor-unit integer strings (e.g. `"5000"` for $50.00).
@@ -37,15 +37,15 @@ dashboard / activity routes
 
 For the authenticated user:
 
-- `totalOwedMinor`: sum of positive net balances (`netMinor > 0`) across all groups where the user is an active member.
-- `totalOwingMinor`: sum of absolute values of negative net balances (`netMinor < 0`) across all groups where the user is an active member.
+- `totalOwedMinor`: sum of positive net balances (`netMinor > 0`) across the user's groups in the same currency.
+- `totalOwingMinor`: sum of absolute values of negative net balances (`netMinor < 0`) across the user's groups in the same currency.
 - `netBalanceMinor = totalOwedMinor - totalOwingMinor`.
 
 Per-group balances are computed using the authoritative `deriveBalances` engine from Milestone 9, guaranteeing zero-sum conservation and exact `BIGINT` arithmetic.
 
 ## Currency behavior
 
-Launch architecture enforces a single launch currency (`"USD"`). All MVP group ledgers are expected to use `"USD"`. If an authorized group carries a non-matching currency, `DashboardService` fails closed with `CURRENCY_MISMATCH`. No floating-point currency conversion or mixed-currency aggregation is performed.
+The dashboard returns one independent summary and spending chart per group currency. No currency conversion is performed, and unlike currencies are never summed. Legacy records without authoritative minor-unit columns inherit their owning group's currency; records with authoritative minor-unit values retain their stored currency so inconsistent data still fails closed in the balance engine. Analytics uses the selected groups' common currency and fails closed with `CURRENCY_MISMATCH` when a request would combine unlike currencies.
 
 ## Activity source, authorization, and pagination
 
@@ -56,7 +56,7 @@ Launch architecture enforces a single launch currency (`"USD"`). All MVP group l
 ## Web cutover and money formatting
 
 - `apps/web/src/app/(dashboard)/dashboard/page.tsx` was refactored to fetch `/v1/dashboard` via `fetchDashboardApi()` and `useQuery`.
-- Display formatting uses `formatMinorUnitToAmount` from `apps/web/src/lib/money.ts`.
+- Display formatting uses currency-aware `formatMinorUnitCurrency` from `apps/web/src/lib/money.ts`.
 - Chart visualization maps `spendingMinor` to a numeric value strictly for Recharts presentation boundaries; it never feeds back into financial state.
 - UI provides explicit loading skeletons, error states with retry affordances, and empty states.
 
@@ -73,9 +73,10 @@ Launch architecture enforces a single launch currency (`"USD"`). All MVP group l
 
 ## Automated tests and validation
 
-Full test suite passes with 17 API test files (160 tests) and 2 web test files (8 tests):
+Full test suite passes with 25 API test files (184 tests) and 3 web test files (17 tests):
 
-- **Dashboard Service Tests**: `apps/api/src/__tests__/dashboard-service.test.ts` covers empty user, owes-only, owed-only, mixed multi-group position, net balance invariant, and incompatible currency rejection.
+- **Dashboard Service Tests**: `apps/api/src/__tests__/dashboard-service.test.ts` covers empty user, owes-only, owed-only, same-currency multi-group positions, INR support, net balance invariants, and independent mixed-currency summaries.
+- **Dashboard Repository Tests**: `apps/api/src/__tests__/dashboard-repository.test.ts` verifies guarded legacy group-currency inheritance and authoritative-record fail-closed behavior.
 - **Dashboard Route Tests**: `apps/api/src/__tests__/dashboard-routes.test.ts` covers 401 unauthenticated rejection and 200 success response.
 - **Activity Route Tests**: `apps/api/src/__tests__/activity-routes.test.ts` covers authentication, pagination, cursor handling, and response envelope.
 
@@ -83,7 +84,7 @@ Validation checks executed:
 
 - `pnpm lint` — passed.
 - `pnpm typecheck` — passed across contracts, API, and web.
-- `pnpm test` — passed (168 tests total).
+- `pnpm test` — passed (201 tests total).
 - `pnpm build:api` — passed.
 - `pnpm build:web` — passed.
 - `pnpm prisma:validate` — passed.

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchBalancesApi } from "@/lib/api-balances";
 import { SettleUpDialog } from "@/components/settlements/settle-up-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 
 type GroupMember = {
   userId: string;
@@ -86,7 +86,7 @@ export function BalancesList({ groupId, members, currentUserId }: BalancesListPr
                         {isCurrentUserCreditor ? "You" : creditor.name}
                      </span>
                   </p>
-                  <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">${formatMinorUnitToAmount(debt.amountMinor)}</p>
+                  <p className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatMinorUnitCurrency(debt.amountMinor, data.currency)}</p>
                </div>
             </div>
             
@@ -96,6 +96,7 @@ export function BalancesList({ groupId, members, currentUserId }: BalancesListPr
                debtorName={isCurrentUserDebtor ? "You" : debtor.name}
                creditorName={isCurrentUserCreditor ? "You" : creditor.name}
                amountMinor={debt.amountMinor}
+               currency={data.currency}
                isCurrentUserDebtor={isCurrentUserDebtor}
                isCurrentUserCreditor={isCurrentUserCreditor}
             />

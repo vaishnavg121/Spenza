@@ -38,3 +38,18 @@ export function formatMinorUnitToAmount(minorUnitStr: string, exponent: number =
   
   return `${integerPart}.${fractionalPart}`;
 }
+
+const CURRENCY_PREFIXES: Readonly<Record<string, string>> = {
+  AUD: "A$",
+  CAD: "C$",
+  EUR: "€",
+  GBP: "£",
+  INR: "₹",
+  SGD: "S$",
+  USD: "$",
+};
+
+export function formatMinorUnitCurrency(minorUnitStr: string, currency: string): string {
+  const prefix = CURRENCY_PREFIXES[currency] ?? `${currency} `;
+  return `${prefix}${formatMinorUnitToAmount(minorUnitStr)}`;
+}

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardApi } from "@/lib/api-dashboard";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -81,7 +81,8 @@ export default function DashboardPage() {
       case "EXPENSE_ADDED": {
         const title = typeof details.title === "string" ? details.title : "Expense";
         const totalMinor = typeof details.totalMinor === "string" ? details.totalMinor : undefined;
-        const amountStr = totalMinor ? `$${formatMinorUnitToAmount(totalMinor)}` : "";
+        const currency = typeof details.currency === "string" ? details.currency : "USD";
+        const amountStr = totalMinor ? formatMinorUnitCurrency(totalMinor, currency) : "";
         return `added an expense "${title}"${amountStr ? ` for ${amountStr}` : ""}`;
       }
       case "EXPENSE_UPDATED": {
@@ -90,12 +91,14 @@ export default function DashboardPage() {
       }
       case "SETTLEMENT_MADE": {
         const amountMinor = typeof details.amountMinor === "string" ? details.amountMinor : undefined;
-        const amountStr = amountMinor ? `$${formatMinorUnitToAmount(amountMinor)}` : "";
+        const currency = typeof details.currency === "string" ? details.currency : "USD";
+        const amountStr = amountMinor ? formatMinorUnitCurrency(amountMinor, currency) : "";
         return `recorded a payment${amountStr ? ` of ${amountStr}` : ""}`;
       }
       case "SETTLEMENT_REVERSED": {
         const amountMinor = typeof details.amountMinor === "string" ? details.amountMinor : undefined;
-        const amountStr = amountMinor ? `$${formatMinorUnitToAmount(amountMinor)}` : "";
+        const currency = typeof details.currency === "string" ? details.currency : "USD";
+        const amountStr = amountMinor ? formatMinorUnitCurrency(amountMinor, currency) : "";
         return `reversed a payment${amountStr ? ` of ${amountStr}` : ""}`;
       }
       case "GROUP_CREATED": {
@@ -109,16 +112,6 @@ export default function DashboardPage() {
     }
   };
 
-  const netBalanceBigInt = BigInt(data.balances.netBalanceMinor);
-  const netBalanceStr = formatMinorUnitToAmount(
-    netBalanceBigInt < ZERO_BIGINT ? (-netBalanceBigInt).toString() : netBalanceBigInt.toString()
-  );
-
-  const chartData = data.spendingChart.map((s) => ({
-    month: s.month,
-    spending: Number(s.spendingMinor) / 100,
-  }));
-
   return (
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
@@ -126,82 +119,75 @@ export default function DashboardPage() {
         description="Overview of your expenses and balances across all groups."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {data.currencySummaries.length === 0 ? (
         <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total balance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold tabular-nums sm:text-3xl ${
-                netBalanceBigInt > ZERO_BIGINT
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : netBalanceBigInt < ZERO_BIGINT
-                  ? "text-destructive"
-                  : ""
-              }`}
-            >
-              {netBalanceBigInt > ZERO_BIGINT ? "+" : netBalanceBigInt < ZERO_BIGINT ? "-" : ""}
-              ${netBalanceStr}
-            </div>
-          </CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">No group balances yet.</CardContent>
         </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-emerald-500">You are owed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-3xl">
-              ${formatMinorUnitToAmount(data.balances.totalOwedMinor)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm sm:col-span-2 xl:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">You owe</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-destructive sm:text-3xl">
-              ${formatMinorUnitToAmount(data.balances.totalOwingMinor)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        data.currencySummaries.map((summary) => {
+          const netBalance = BigInt(summary.netBalanceMinor);
+          const absoluteNet = netBalance < ZERO_BIGINT ? -netBalance : netBalance;
+          return (
+            <section key={summary.currency} className="space-y-4" aria-labelledby={`balances-${summary.currency}`}>
+              <h2 id={`balances-${summary.currency}`} className="text-lg font-semibold">
+                {summary.currency} balances
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total balance</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold tabular-nums sm:text-3xl ${netBalance > ZERO_BIGINT ? "text-emerald-600 dark:text-emerald-400" : netBalance < ZERO_BIGINT ? "text-destructive" : ""}`}>
+                      {netBalance > ZERO_BIGINT ? "+" : netBalance < ZERO_BIGINT ? "-" : ""}
+                      {formatMinorUnitCurrency(absoluteNet.toString(), summary.currency)}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-500">You are owed</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-3xl">
+                      {formatMinorUnitCurrency(summary.totalOwedMinor, summary.currency)}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-sm sm:col-span-2 xl:col-span-1">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-destructive">You owe</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold tabular-nums text-destructive sm:text-3xl">
+                      {formatMinorUnitCurrency(summary.totalOwingMinor, summary.currency)}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
+          );
+        })
+      )}
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-5">
-        <Card className="min-w-0 shadow-sm xl:col-span-3">
-          <CardHeader>
-            <CardTitle>Spending Overview</CardTitle>
-            <CardDescription>Your total spending over the last 6 months.</CardDescription>
-          </CardHeader>
-          <CardContent className="min-w-0 px-3 sm:px-5">
-            <div className="mt-4 h-64 w-full min-w-0 sm:h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <XAxis
-                    dataKey="month"
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `$${value}`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(0,0,0,0.1)" }}
-                    contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                  />
-                  <Bar dataKey="spending" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+        {data.currencySummaries.map((summary) => {
+          const chartData = summary.spendingChart.map((item) => ({ month: item.month, spending: Number(item.spendingMinor) / 100 }));
+          return (
+            <Card key={summary.currency} className="min-w-0 shadow-sm">
+              <CardHeader>
+                <CardTitle>{summary.currency} Spending Overview</CardTitle>
+                <CardDescription>Your spending over the last 6 months in {summary.currency}.</CardDescription>
+              </CardHeader>
+              <CardContent className="min-w-0 px-3 sm:px-5">
+                <div className="mt-4 h-64 w-full min-w-0 sm:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatMinorUnitCurrency(String(Math.round(Number(value) * 100)), summary.currency)} />
+                      <Tooltip cursor={{ fill: "rgba(0,0,0,0.1)" }} contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
+                      <Bar dataKey="spending" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
 
         <Card className="shadow-sm xl:col-span-2">
           <CardHeader>

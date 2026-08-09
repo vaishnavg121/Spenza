@@ -2,8 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchSettlementsApi, reverseSettlementApi } from "@/lib/api-settlements";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatMinorUnitToAmount } from "@/lib/money";
+import { formatMinorUnitCurrency } from "@/lib/money";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -100,7 +99,7 @@ export function SettlementHistory({ groupId, members, currentUserId }: Settlemen
                   )}
                 </p>
                 <p className={`text-sm ${isReversed ? "text-destructive line-through" : "text-muted-foreground"}`}>
-                  ${formatMinorUnitToAmount(settlement.amountMinor)}
+                  {formatMinorUnitCurrency(settlement.amountMinor, settlement.currency)}
                 </p>
               </div>
             </div>

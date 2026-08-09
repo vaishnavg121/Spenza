@@ -9,30 +9,32 @@ import { toast } from "sonner";
 export function PushSubscribeButton() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Default false
 
   // We should fetch NEXT_PUBLIC_VAPID_PUBLIC_KEY from env
   const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     // Check initial state
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setTimeout(() => setIsLoading(false), 0);
       return;
     }
 
+    // Delay setting state to avoid synchronous effect execution
     setTimeout(() => {
       setPermission(Notification.permission);
-    }, 0);
-    
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.pushManager.getSubscription().then((sub) => {
-        setIsSubscribed(!!sub);
-        setIsLoading(false);
-      }).catch(() => {
-        setIsLoading(false);
+      setIsLoading(true);
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setIsSubscribed(!!sub);
+          setIsLoading(false);
+        }).catch(() => {
+          setIsLoading(false);
+        });
       });
-    });
+    }, 0);
   }, []);
 
   const urlBase64ToUint8Array = (base64String: string) => {

@@ -9,7 +9,6 @@ import {
 import { ExpenseRecord } from "../expenses/expense-repository.js";
 import { SettlementRecord } from "../settlements/settlement-repository.js";
 import { ActivityRecord } from "../activity/activity-repository.js";
-import { UnprocessableEntityError } from "../errors/app-error.js";
 
 class InMemoryDashboardRepository implements DashboardRepository {
   public groups: DashboardGroup[] = [];
@@ -18,6 +17,7 @@ class InMemoryDashboardRepository implements DashboardRepository {
   public settlements: SettlementRecord[] = [];
   public activities: ActivityRecord[] = [];
   public monthlySpending: MonthlySpending[] = [];
+  public monthlySpendingCalls: string[][] = [];
 
   async findUserGroups(_userId: string): Promise<DashboardGroup[]> {
     return this.groups;
@@ -39,7 +39,8 @@ class InMemoryDashboardRepository implements DashboardRepository {
     return this.activities.slice(0, limit);
   }
 
-  async findMonthlySpending(_userId: string, _groupIds: string[]): Promise<MonthlySpending[]> {
+  async findMonthlySpending(_userId: string, groupIds: string[]): Promise<MonthlySpending[]> {
+    this.monthlySpendingCalls.push(groupIds);
     return this.monthlySpending;
   }
 }
@@ -51,12 +52,7 @@ describe("DashboardService", () => {
 
     const result = await service.getDashboardData("user_1");
 
-    expect(result.balances).toEqual({
-      totalOwedMinor: "0",
-      totalOwingMinor: "0",
-      netBalanceMinor: "0",
-      currency: "USD",
-    });
+    expect(result.currencySummaries).toEqual([]);
     expect(result.recentExpenses).toEqual([]);
     expect(result.recentSettlements).toEqual([]);
     expect(result.recentActivities).toEqual([]);
@@ -86,12 +82,13 @@ describe("DashboardService", () => {
 
     const result = await service.getDashboardData("user_1");
 
-    expect(result.balances.totalOwedMinor).toBe("5000");
-    expect(result.balances.totalOwingMinor).toBe("0");
-    expect(result.balances.netBalanceMinor).toBe("5000");
+    const summary = result.currencySummaries[0];
+    expect(summary.totalOwedMinor).toBe("5000");
+    expect(summary.totalOwingMinor).toBe("0");
+    expect(summary.netBalanceMinor).toBe("5000");
     expect(
-      BigInt(result.balances.totalOwedMinor) - BigInt(result.balances.totalOwingMinor)
-    ).toBe(BigInt(result.balances.netBalanceMinor));
+      BigInt(summary.totalOwedMinor) - BigInt(summary.totalOwingMinor)
+    ).toBe(BigInt(summary.netBalanceMinor));
   });
 
   it("calculates correct metrics for an owes-only user", async () => {
@@ -118,12 +115,13 @@ describe("DashboardService", () => {
 
     const result = await service.getDashboardData("user_1");
 
-    expect(result.balances.totalOwedMinor).toBe("0");
-    expect(result.balances.totalOwingMinor).toBe("3000");
-    expect(result.balances.netBalanceMinor).toBe("-3000");
+    const summary = result.currencySummaries[0];
+    expect(summary.totalOwedMinor).toBe("0");
+    expect(summary.totalOwingMinor).toBe("3000");
+    expect(summary.netBalanceMinor).toBe("-3000");
     expect(
-      BigInt(result.balances.totalOwedMinor) - BigInt(result.balances.totalOwingMinor)
-    ).toBe(BigInt(result.balances.netBalanceMinor));
+      BigInt(summary.totalOwedMinor) - BigInt(summary.totalOwingMinor)
+    ).toBe(BigInt(summary.netBalanceMinor));
   });
 
   it("calculates mixed position and maintains net balance invariant across multiple groups", async () => {
@@ -172,26 +170,84 @@ describe("DashboardService", () => {
 
     const result = await service.getDashboardData("user_1");
 
-    expect(result.balances.totalOwedMinor).toBe("5000");
-    expect(result.balances.totalOwingMinor).toBe("2000");
-    expect(result.balances.netBalanceMinor).toBe("3000");
+    const summary = result.currencySummaries[0];
+    expect(summary.totalOwedMinor).toBe("5000");
+    expect(summary.totalOwingMinor).toBe("2000");
+    expect(summary.netBalanceMinor).toBe("3000");
     expect(
-      BigInt(result.balances.totalOwedMinor) - BigInt(result.balances.totalOwingMinor)
-    ).toBe(BigInt(result.balances.netBalanceMinor));
+      BigInt(summary.totalOwedMinor) - BigInt(summary.totalOwingMinor)
+    ).toBe(BigInt(summary.netBalanceMinor));
   });
 
-  it("rejects groups with incompatible currencies", async () => {
+  it("supports a non-USD single-currency group", async () => {
     const repository = new InMemoryDashboardRepository();
-    repository.groups = [{ id: "group_eur", name: "Europe", currency: "EUR" }];
-    repository.ledgers.set("group_eur", {
-      groupId: "group_eur",
-      currency: "EUR",
+    repository.groups = [{ id: "group_inr", name: "Home", currency: "INR" }];
+    repository.ledgers.set("group_inr", {
+      groupId: "group_inr",
+      currency: "INR",
       knownUserIds: new Set(["user_1", "user_2"]),
       expenses: [],
       settlements: [],
     });
     const service = new DashboardService(repository);
 
-    await expect(service.getDashboardData("user_1")).rejects.toThrow(UnprocessableEntityError);
+    const result = await service.getDashboardData("user_1");
+
+    expect(result.currencySummaries).toEqual([
+      {
+        currency: "INR",
+        totalOwedMinor: "0",
+        totalOwingMinor: "0",
+        netBalanceMinor: "0",
+        spendingChart: [],
+      },
+    ]);
+  });
+
+  it("keeps unlike currencies in independent summaries", async () => {
+    const repository = new InMemoryDashboardRepository();
+    repository.groups = [
+      { id: "group_usd", name: "Work", currency: "USD" },
+      { id: "group_inr", name: "Home", currency: "INR" },
+    ];
+    repository.ledgers.set("group_usd", {
+      groupId: "group_usd",
+      currency: "USD",
+      knownUserIds: new Set(["user_1", "user_2"]),
+      expenses: [{
+        currency: "USD",
+        totalMinor: 10000n,
+        payments: [{ userId: "user_1", contributionMinor: 10000n }],
+        allocations: [
+          { userId: "user_1", allocationMinor: 5000n },
+          { userId: "user_2", allocationMinor: 5000n },
+        ],
+      }],
+      settlements: [],
+    });
+    repository.ledgers.set("group_inr", {
+      groupId: "group_inr",
+      currency: "INR",
+      knownUserIds: new Set(["user_1", "user_3"]),
+      expenses: [{
+        currency: "INR",
+        totalMinor: 4000n,
+        payments: [{ userId: "user_3", contributionMinor: 4000n }],
+        allocations: [
+          { userId: "user_1", allocationMinor: 2000n },
+          { userId: "user_3", allocationMinor: 2000n },
+        ],
+      }],
+      settlements: [],
+    });
+    const service = new DashboardService(repository);
+
+    const result = await service.getDashboardData("user_1");
+
+    expect(result.currencySummaries).toEqual([
+      expect.objectContaining({ currency: "INR", netBalanceMinor: "-2000" }),
+      expect.objectContaining({ currency: "USD", netBalanceMinor: "5000" }),
+    ]);
+    expect(repository.monthlySpendingCalls).toEqual([["group_inr"], ["group_usd"]]);
   });
 });
