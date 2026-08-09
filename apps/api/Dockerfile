@@ -42,7 +42,7 @@ RUN pnpm dlx prisma@5.22.0 generate --schema=apps/web/prisma/schema.prisma
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # Set user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
 EXPOSE 4000
