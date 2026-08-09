@@ -1,0 +1,7 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/spenza-504615/spenza/spenza-api:46845c2', '-f', 'apps/api/Dockerfile', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/spenza-504615/spenza/spenza-api:46845c2']
+images:
+  - 'us-central1-docker.pkg.dev/spenza-504615/spenza/spenza-api:46845c2'

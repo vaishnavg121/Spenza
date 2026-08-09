@@ -22,7 +22,7 @@
     "@radix-ui/react-slot": "^1.3.3",
     "@spenza/contracts": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
-    "better-auth": "^1.6.26",
+    
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

@@ -1,0 +1,1 @@
+postgresql://postgres:Spenza_5438b7585dfed765f0520d366d1c8849!@localhost:5432/spenza?host=/cloudsql/spenza-504615:asia-south1:spenza-db
