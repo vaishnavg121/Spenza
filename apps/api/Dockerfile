@@ -37,7 +37,7 @@ COPY --from=builder /app/apps/web/prisma ./apps/web/prisma
 
 # Only install production dependencies
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts
-RUN pnpm dlx prisma generate --schema=apps/web/prisma/schema.prisma
+RUN pnpm dlx prisma@5.22.0 generate --schema=apps/web/prisma/schema.prisma
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
