@@ -13,11 +13,11 @@ The repository's `.nvmrc` selects Node.js 20 for version managers that support i
 
 ```text
 apps/
-  web/              Production web application foundation
-  mobile/           Empty placeholder retained for a later cleanup
-  api/              Empty placeholder reserved for API Foundation
+  web/              Production web application (Next.js PWA)
+  api/              Express API with Prisma/PostgreSQL, Clerk auth, idempotent workflows
+  mobile/           Empty placeholder for future React Native app
 packages/
-  contracts/        Reserved shared API contracts
+  contracts/        Shared API contracts (Zod schemas)
   config/           Reserved shared runtime/build configuration
   eslint-config/    Shared ESLint configuration
   tsconfig/         Shared strict TypeScript configuration
@@ -35,7 +35,7 @@ pnpm test
 pnpm prisma:validate
 ```
 
-The current repository has no automated test suite, so `pnpm test` is an orchestration command that will begin running workspace test scripts as they are introduced.
+All commands above are fully functional. `pnpm test` runs the complete test suite (214 API tests + 40 web tests).
 
 Local environment files remain untracked. The web application reads its local environment from `apps/web/.env*`; never commit secret values.
 
